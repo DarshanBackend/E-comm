@@ -1,7 +1,8 @@
 import jwt from "jsonwebtoken";
 import registerModel from "../model/user.model.js";
 import { sendErrorResponse, sendForbiddenResponse, sendUnauthorizedResponse, sendNotFoundResponse } from '../utils/Response.utils.js';
-import { config } from 'dotenv'; config();
+import { config } from 'dotenv'; import sellerModel from "../model/seller.model.js";
+config();
 
 export const UserAuth = async (req, res, next) => {
     try {
@@ -62,24 +63,25 @@ export const isUser = async (req, res, next) => {
     }
 };
 
-export const sellerAuth = (req, res, next) => {
+export const sellerAuth = async (req, res, next) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader?.startsWith("Bearer ")) {
+        const token = req.header("Authorization")?.replace("Bearer ", "");
+        if (!token) {
             return res.status(401).json({ success: false, message: "No token provided" });
         }
 
-        const token = authHeader.split(" ")[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        if (!decoded.isSeller) {
-            return res.status(403).json({ success: false, message: "Seller access required" });
+        const seller = await sellerModel.findById(decoded.id);
+
+        if (!seller) {
+            return res.status(403).json({ success: false, message: "Seller not found or unauthorized" });
         }
 
-        req.user = decoded; // attach full decoded payload
+        req.user = seller;
         next();
     } catch (error) {
+        console.error("Seller Auth error:", error);
         return res.status(401).json({ success: false, message: "Invalid or expired token" });
     }
 };
-

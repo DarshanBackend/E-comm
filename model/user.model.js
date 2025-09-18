@@ -73,6 +73,9 @@ const UserSchema = new mongoose.Schema({
         enum: ["user", "admin"],
         default: "user"
     },
+    isAdmin: {
+        type: Boolean
+    },
     address: [UserAddressSchema],
     billingaddress: [UserBillingAddressSchema],
     selectedAddress: {

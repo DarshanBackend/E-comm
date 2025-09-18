@@ -1,17 +1,19 @@
 import express from 'express';
 import { AuthController } from '../controller/auth.controller.js';
 import { newSellerController, verifySellerMobileOtpController, sellerLoginController, sellerForgetPasswordController, sellerVerifyForgetOtpController, sellerPasswordResetController, sellerGstVerifyAndInsertController, setSellerBusinessAddressController, sellerGstResetOtpController, sellerBrandInfoAddController, sellerBankInfoSetController, sellerPickUpAddressSetController, trueSellerAgreementController, getAllSeller, getSeller, verifySellerOtpController } from '../controller/seller.controller.js';
-import { CategoryController } from '../controller/category.controller.js';
+import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, updateCategoryById } from '../controller/category.controller.js';
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageUpload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
-import { deleteProductController, filterProductController, getAllProductsController, getPackSizeByIdController, getProductByCategoryController, getProductDetailController, newProductController, searchProductController, updateProductController } from '../controller/product.controller.js';
+import { createProduct } from '../controller/product.controller.js';
 import { addToCartController, deleteCartItemController, getMyCartController, updateCartItemController } from '../controller/cart.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
 import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
 import { cancelMyOrderController, deleteMyOrderController, myOrderController, newOrderController, selectUserAddressController, selectUserBillingAddressController, sellerChangeOrderStatusController, updateMyOrderController, userStatusFilterController } from '../controller/order.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
+import { createMainCategory, deleteMainCategoryById, getAllMainCategory, getMainCategoryById, updateMainCategoryById } from '../controller/mainCategory.controller.js';
+import { createSubCategory, deleteSubCategoryById, getAllSubCategory, getSubCategoryById, updateSubCategoryById } from '../controller/subCategory.controller.js';
 
 
 const indexRouter = express.Router();
@@ -35,30 +37,36 @@ indexRouter.post("/seller/forget/password", sellerForgetPasswordController);
 indexRouter.post("/seller/verify/forget/password", sellerVerifyForgetOtpController)
 indexRouter.post("/seller/reset/password", sellerPasswordResetController);
 
+
+// MainCategory
+indexRouter.post("/createMainCategory", UserAuth, isAdmin, createMainCategory)
+indexRouter.get("/getAllMainCategory", getAllMainCategory)
+indexRouter.get("/getMainCategoryById/:id", getMainCategoryById)
+indexRouter.patch("/updateMainCategoryById/:id", UserAuth, isAdmin, updateMainCategoryById)
+indexRouter.delete("/deleteMainCategoryById/:id", UserAuth, isAdmin, deleteMainCategoryById)
+
 // Category 
-indexRouter.post("/createCategory", UserAuth, isAdmin, upload.single("category_image"), CategoryController.createCategory)
-indexRouter.get("/getAllCategory", CategoryController.getAllCategory)
-indexRouter.get("/getCategoryById/:id", CategoryController.getCategoryById)
-indexRouter.put("/updateCategory/:id", UserAuth, isAdmin, upload.single("category_image"), CategoryController.updateCategory)
-indexRouter.delete("/deleteCategory/:id", UserAuth, isAdmin, CategoryController.deleteCategory)
+indexRouter.post("/createCategory", UserAuth, isAdmin, createCategory)
+indexRouter.get("/getAllCategory", getAllCategory)
+indexRouter.get("/getCategoryById/:id", getCategoryById)
+indexRouter.patch("/updateCategoryById/:id", UserAuth, isAdmin, updateCategoryById)
+indexRouter.delete("/deleteCategoryById/:id", UserAuth, isAdmin, deleteCategoryById)
+
+// SubCategory 
+indexRouter.post("/createSubCategory", UserAuth, isAdmin, createSubCategory)
+indexRouter.get("/getAllSubCategory", getAllSubCategory)
+indexRouter.get("/getSubCategoryById/:id", getSubCategoryById)
+indexRouter.patch("/updateSubCategoryById/:id", UserAuth, isAdmin, updateSubCategoryById)
+indexRouter.delete("/deleteSubCategoryById/:id", UserAuth, isAdmin, deleteSubCategoryById)
 
 // Product
-indexRouter.post("/new/product", sellerAuth, upload.fields([{ name: "productImage", maxCount: 1 }, { name: "gImage", maxCount: 5 }]), newProductController);
-indexRouter.patch("/seller/updateProduct/:productId", sellerAuth, upload.fields([{ name: "productImage", maxCount: 1 }, { name: "gImage", maxCount: 5 }]), updateProductController);
-indexRouter.delete("/seller/deleteProduct/:id", sellerAuth, deleteProductController);
-indexRouter.get("/all/products", getAllProductsController); // *
-indexRouter.get("/get/short/productBycategory/:categoryId", getProductByCategoryController);
-indexRouter.get("/get/product/detail/:productId", getProductDetailController)
-indexRouter.get("/search", searchProductController);
-indexRouter.get("/filter", filterProductController);
-indexRouter.get("/packSize/:packSizeId", getPackSizeByIdController);
-
+indexRouter.post("/createProduct", sellerAuth, createProduct);
 
 //seller.kyc.router.js
 indexRouter.post("/seller/gst/verify", sellerAuth, sellerGstVerifyAndInsertController);
-indexRouter.post("/seller/business/address", sellerAuth, setSellerBusinessAddressController); //business info save + otp send for GST verify
+indexRouter.post("/seller/business/address", sellerAuth, setSellerBusinessAddressController);
 indexRouter.post("/seller/verify/otp", sellerAuth, verifySellerOtpController)
-indexRouter.post("/seller/gst/reset/otp", sellerAuth, sellerGstResetOtpController); //resend gst verif y OTP
+indexRouter.post("/seller/gst/reset/otp", sellerAuth, sellerGstResetOtpController);
 
 //seller.brand.info.router.js
 indexRouter.post("/seller/brand/info", sellerAuth, sellerBrandInfoAddController);

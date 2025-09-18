@@ -61,7 +61,7 @@ export class AuthController {
                 email,
                 password: hashedPassword,
                 avatar: profileAvatar,
-                role
+                role: role || 'user',
             });
 
             const payload = {
@@ -174,7 +174,8 @@ export class AuthController {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 email: user.email,
-                role: user.role || "user"
+                role: user.role || "user",
+                isAdmin: user.role === 'admin',
             };
 
             const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });

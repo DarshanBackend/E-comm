@@ -7,12 +7,12 @@ const sellerSchema = new mongoose.Schema({
     avatar: { type: String, default: null },
     otp: { type: String, default: null },
     GSTIN: { type: String, default: null },
-    verified: { type: Boolean, default: false }, //GSTIN & mobile OTP both verfi after this TRUE
+    verified: { type: Boolean, default: false },
     businessName: { type: String, default: null },
     panNumber: { type: String, default: null },
     businessType: { type: String, default: null },
     businessAddr: { type: String, default: null },
-    storeName: { type: String, default: null },
+    brandName: { type: String, default: null },
     ownerName: { type: String, default: null },
     BankAcNumber: { type: String, default: null },
     ifsc: { type: String, default: null },
@@ -31,7 +31,7 @@ const sellerSchema = new mongoose.Schema({
         type: Number
     },
     products: [
-        { type: mongoose.Schema.Types.ObjectId }
+        { type: mongoose.Schema.Types.ObjectId, ref: "Product" }
     ]
 });
 

@@ -1,68 +1,53 @@
 import mongoose from "mongoose";
 
-const galleryImage = new mongoose.Schema({
-    gImage: { type: String, default: null },
-    gImageKey: { type: String, default: null }
-});
-
-// For different pack sizes
-const packSizeSchema = new mongoose.Schema({
-    weight: { type: Number, required: true },        // 250, 350, 500
-    unit: {
-        type: String,
-        enum: ["g", "kg", "ml", "l", "pc"],
-        required: true
-    },
-    price: { type: Number, required: true, min: 0 }, // Price for this pack
-    stock: { type: Number, default: 0, min: 0 }      // Available units of this pack
-});
-
 const productSchema = new mongoose.Schema({
-    productName: { type: String, default: null },
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
 
-    category: {
-        type: mongoose.Types.ObjectId,
-        ref: "category",
-        required: [true, "category ref id is required"],
-    },
-    sellerId: {
-        type: mongoose.Types.ObjectId,
-        ref: "seller",
-        required: [true, "seller id is required"]
-    },
-    inStock: { type: Boolean, default: true }, // automatically update when stock changes
-    // Base product pricing (optional, can be used as reference)
-    price: { type: Number, default: null },
-    originalPrice: { type: Number, default: null },
-    discount: { type: Number, default: null },
+  brand: { type: String },
+  title: { type: String, required: true },
 
-    // Admin-side: total stock with unit
-    totalQuantity: {
-        value: { type: Number, required: true, min: 0 }, // e.g., 5
-        unit: {
-            type: String,
-            enum: ["g", "kg", "ml", "l", "pc"],
-            required: true
-        }
-    },
-    soldCount: { type: Number, default: 0 },
-    // User-side: available pack sizes
-    packSizes: [packSizeSchema],
-    currency: {
-        type: String,
-        enum: ["USD", "INR", "AED", "NZD"],
-        default: "USD"
-    },
-    productDesc: { type: String, default: null },
+  mainCategory: { type: mongoose.Schema.Types.ObjectId, ref: "MainCategory", required: true },
+  category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+  subCategory: { type: mongoose.Schema.Types.ObjectId, ref: "SubCategory", required: true },
 
-    productImage: { type: String, default: null },
-    productImageKey: { type: String, default: null },
-    gImage: [galleryImage],
+  description: { type: String },
 
-    productHealthBenefit: { type: String, default: null },
-    productStorage: { type: String, default: null }
+  rating: {
+    average: { type: Number, default: 0 },
+    totalReviews: { type: Number, default: 0 }
+  },
+
+  productDetails: {
+    material: { type: String },
+    fit: { type: String },
+    closure: { type: String },
+    weight: { type: String },
+    careInstructions: { type: String },
+    origin: { type: String },
+    additionalFeatures: [{ type: String }],
+  },
+
+  shippingReturn: {
+    freeShipping: { type: String },
+    returnPolicy: { type: String },
+    internationalShipping: { type: String },
+    packaging: { type: String },
+    deliveryTracking: { type: String },
+    orderProcessing: { type: String }
+  },
+
+  warrantySupport: {
+    warranty: { type: String },
+    careTips: { type: String },
+    customerSupport: {
+      email: { type: String },
+      phone: { type: String },
+      available: { type: String }
+    },
+    faqs: [{ type: String }]
+  },
+
+  isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
-const productModel = mongoose.model("product", productSchema);
-
-export default productModel;
+export default mongoose.model("Product", productSchema);

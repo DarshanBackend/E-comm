@@ -814,10 +814,10 @@ export const sellerGstResetOtpController = async (req, res) => {
 export const sellerBrandInfoAddController = async (req, res) => {
     try {
         const { id } = req?.user;
-        const { storeName, ownerName } = req?.body;
+        const { brandName, ownerName } = req?.body;
 
-        if (!storeName && !ownerName && !req.body) {
-            return sendBadRequestResponse("storeName & ownerName are required! to request!");
+        if (!brandName && !ownerName && !req.body) {
+            return sendBadRequestResponse("brandName & ownerName are required! to request!");
         }
 
         if (!id && req?.user) {
@@ -832,7 +832,7 @@ export const sellerBrandInfoAddController = async (req, res) => {
 
         //save record
         const newBrandinfo = await sellerModel.findByIdAndUpdate({ _id: id }, {
-            storeName: storeName,
+            brandName: brandName,
             ownerName: ownerName
         });
 
