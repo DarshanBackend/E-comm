@@ -810,42 +810,6 @@ export const sellerGstResetOtpController = async (req, res) => {
     }
 };
 
-//seller.brand.info.controller.js
-export const sellerBrandInfoAddController = async (req, res) => {
-    try {
-        const { id } = req?.user;
-        const { brandName, ownerName } = req?.body;
-
-        if (!brandName && !ownerName && !req.body) {
-            return sendBadRequestResponse("brandName & ownerName are required! to request!");
-        }
-
-        if (!id && req?.user) {
-            return sendNotFoundResponse(res, "req.user & user id no Found!!");
-        }
-
-        const seller = await sellerModel.findOne({ _id: id });
-
-        if (!seller) {
-            return sendNotFoundResponse(res, "Seller not found!");
-        }
-
-        //save record
-        const newBrandinfo = await sellerModel.findByIdAndUpdate({ _id: id }, {
-            brandName: brandName,
-            ownerName: ownerName
-        });
-
-        await newBrandinfo.save();
-
-        return sendSuccessResponse(res, "Branch Name & owner Name Save Successfully", newBrandinfo);
-
-    } catch (error) {
-        console.log("error while Insert Seller Brand info" + error.message);
-        return sendErrorResponse(res, 500, "Error while insert Seller Brand Info", error);
-    }
-}
-
 export const sellerBankInfoSetController = async (req, res) => {
     try {
         const { id } = req?.user || {};

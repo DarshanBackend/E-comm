@@ -1,5 +1,8 @@
+import mongoose from "mongoose";
+
 const productVariantSchema = new mongoose.Schema({
     productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+    sellerId: { type: mongoose.Schema.Types.ObjectId, ref: "seller", required: true },
 
     sku: { type: String, unique: true },
 
@@ -16,7 +19,7 @@ const productVariantSchema = new mongoose.Schema({
 
     stock: { type: Number, default: 0 },
     weight: { type: String },
-
+    
 }, { timestamps: true });
 
-export const ProductVariant = mongoose.model("ProductVariant", productVariantSchema);
+export default mongoose.model("ProductVariant", productVariantSchema);

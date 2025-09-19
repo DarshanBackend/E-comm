@@ -10,10 +10,11 @@ const sellerSchema = new mongoose.Schema({
     verified: { type: Boolean, default: false },
     businessName: { type: String, default: null },
     panNumber: { type: String, default: null },
+    brandId: [
+        { type: mongoose.Schema.Types.ObjectId, ref: "Brand" }
+    ],
     businessType: { type: String, default: null },
     businessAddr: { type: String, default: null },
-    brandName: { type: String, default: null },
-    ownerName: { type: String, default: null },
     BankAcNumber: { type: String, default: null },
     ifsc: { type: String, default: null },
     pickUpAddr: [
