@@ -24,40 +24,53 @@ export const createProduct = async (req, res) => {
 
         const sellerId = req.user?._id;
 
+        // Validate sellerId
         if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
             return sendBadRequestResponse(res, "Invalid or missing seller ID. Please login first!");
         }
 
+        // Fetch seller and their brands
+        const seller = await sellerModel.findById(sellerId).populate("brandId");
+        if (!seller) return sendNotFoundResponse(res, "Seller not found or unauthorized!");
+
+        // Check if seller has at least one brand
+        if (!seller.brandId || seller.brandId.length === 0) {
+            return sendBadRequestResponse(res, "Please add a brand first before creating a product.");
+        }
+
+        // Use the provided brand or default to the first seller brand
+        let selectedBrand;
+        if (brand) {
+            const isValidBrand = seller.brandId.some(b => b._id.toString() === brand);
+            if (!isValidBrand) {
+                return sendBadRequestResponse(res, "This brand does not belong to you!");
+            }
+            selectedBrand = brand;
+        } else {
+            selectedBrand = seller.brandId[0]._id; // auto select first seller brand
+        }
+
+        // Validate required fields
         if (!title || !mainCategory || !category || !subCategory) {
             return sendBadRequestResponse(res, "title, mainCategory, category and subCategory are required!");
         }
 
-        if (!mongoose.Types.ObjectId.isValid(mainCategory)) {
-            return sendBadRequestResponse(res, "Invalid mainCategory ID!");
-        }
-        if (!mongoose.Types.ObjectId.isValid(category)) {
-            return sendBadRequestResponse(res, "Invalid category ID!");
-        }
-        if (!mongoose.Types.ObjectId.isValid(subCategory)) {
-            return sendBadRequestResponse(res, "Invalid subCategory ID!");
-        }
+        if (!mongoose.Types.ObjectId.isValid(mainCategory)) return sendBadRequestResponse(res, "Invalid mainCategory ID!");
+        if (!mongoose.Types.ObjectId.isValid(category)) return sendBadRequestResponse(res, "Invalid category ID!");
+        if (!mongoose.Types.ObjectId.isValid(subCategory)) return sendBadRequestResponse(res, "Invalid subCategory ID!");
 
+        // Check categories existence
         const [mainCatExists, catExists, subCatExists] = await Promise.all([
             MainCategoryModel.findById(mainCategory),
             CategoryModel.findById(category),
             SubCategoryModel.findById(subCategory),
         ]);
 
-        if (!mainCatExists) {
-            return sendNotFoundResponse(res, "Main category does not exist!");
-        }
-        if (!catExists) {
-            return sendNotFoundResponse(res, "Category does not exist!");
-        }
-        if (!subCatExists) {
-            return sendNotFoundResponse(res, "Sub category does not exist!");
-        }
+        if (!mainCatExists) return sendNotFoundResponse(res, "Main category does not exist!");
+        if (!catExists) return sendNotFoundResponse(res, "Category does not exist!");
+        if (!subCatExists) return sendNotFoundResponse(res, "Sub category does not exist!");
 
+        // Validate productDetails fields
         if (productDetails) {
             const { material, fit, closure, weight } = productDetails;
             if (material && typeof material !== "string") return sendBadRequestResponse(res, "Material must be a string!");
@@ -66,6 +79,7 @@ export const createProduct = async (req, res) => {
             if (weight && typeof weight !== "string") return sendBadRequestResponse(res, "Weight must be a string!");
         }
 
+        // Validate customerSupport
         if (warrantySupport?.customerSupport) {
             const { email, phone, available } = warrantySupport.customerSupport;
             if (email && typeof email !== "string") return sendBadRequestResponse(res, "Customer support email must be a string!");
@@ -73,19 +87,14 @@ export const createProduct = async (req, res) => {
             if (available && typeof available !== "string") return sendBadRequestResponse(res, "Customer support availability must be a string!");
         }
 
-        const seller = await sellerModel.findById(sellerId);
-        if (!seller) {
-            return sendNotFoundResponse(res, "Seller not found or unauthorized!");
-        }
-
+        // Check duplicate product
         const existingProduct = await Product.findOne({ title, sellerId, category });
-        if (existingProduct) {
-            return sendBadRequestResponse(res, "This product is already added!");
-        }
+        if (existingProduct) return sendBadRequestResponse(res, "This product is already added!");
 
+        // Create product
         const newProduct = await Product.create({
             sellerId,
-            brand,
+            brand: selectedBrand,
             title,
             mainCategory,
             category,
@@ -96,18 +105,26 @@ export const createProduct = async (req, res) => {
             warrantySupport
         });
 
+        // Add product to seller
         await sellerModel.findByIdAndUpdate(
             sellerId,
             { $push: { products: newProduct._id } },
             { new: true }
         );
 
-        return sendSuccessResponse(res, "✅ Product created successfully!", newProduct);
+        const populatedProduct = await Product.findById(newProduct._id)
+            .populate("brand", "brandName")
+            .populate("mainCategory", "mainCategoryName")
+            .populate("category", "categoryName")
+            .populate("subCategory", "subCategoryName");
+
+        return sendSuccessResponse(res, "✅ Product created successfully!", populatedProduct);
 
     } catch (error) {
         return ThrowError(res, 500, error.message);
     }
 };
+
 
 export const getAllProduct = async (req, res) => {
     try {

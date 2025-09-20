@@ -66,19 +66,23 @@ export const isUser = async (req, res, next) => {
 export const sellerAuth = async (req, res, next) => {
     try {
         const token = req.header("Authorization")?.replace("Bearer ", "");
-        if (!token) {
-            return res.status(401).json({ success: false, message: "No token provided" });
-        }
+        if (!token) return res.status(401).json({ success: false, message: "No token provided" });
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        const seller = await sellerModel.findById(decoded.id);
-
+        const seller = await sellerModel.findById(decoded._id);
         if (!seller) {
             return res.status(403).json({ success: false, message: "Seller not found or unauthorized" });
         }
 
-        req.user = seller;
+        // Normalize user object
+        req.user = {
+            _id: seller._id.toString(),
+            name: seller.name,
+            email: seller.email,
+            role: seller.role
+        };
+
         next();
     } catch (error) {
         console.error("Seller Auth error:", error);

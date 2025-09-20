@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import BrandModel from "../model/brand.model.js";
 import sellerModel from "../model/seller.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
-import { sendBadRequestResponse, sendSuccessResponse } from "../utils/Response.utils.js";
+import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import { uploadFile } from "../middleware/imageupload.js";
 
 export const createBrand = async (req, res) => {
@@ -23,14 +23,13 @@ export const createBrand = async (req, res) => {
             return sendBadRequestResponse(res, "This brand already exists for you!");
         }
 
-        let brandImage = null;
-
-        if (req.file) {
-            const result = await uploadFile(req.file);
+        let brandImage = "";
+        const mainFile = req.file || req.files?.brandImage?.[0];
+        if (mainFile) {
+            const result = await uploadFile(mainFile);
             brandImage = result.url;
         }
-        console.log("req.files:", req.files);
-        
+
         const newBrand = await BrandModel.create({
             sellerId,
             brandName,
@@ -47,4 +46,135 @@ export const createBrand = async (req, res) => {
     } catch (error) {
         return ThrowError(res, 500, error.message);
     }
+};
+
+export const getAllBrand = async (req, res) => {
+    try {
+        const brand = await BrandModel.find({})
+
+        if (!brand || brand.length === 0) {
+            return sendNotFoundResponse(res, "No any Brand found...")
+        }
+
+        return sendSuccessResponse(res, "Brand fetched Successfully...", brand)
+
+    } catch (error) {
+        return ThrowError(res, 500, error.message)
+    }
+}
+
+export const getBrandById = async (req, res) => {
+    try {
+        const { id } = req.params
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendBadRequestResponse(res, "Invalid BrandId")
+        }
+
+        const checkBrand = await BrandModel.findById(id)
+        if (!checkBrand) {
+            return sendNotFoundResponse(res, "Brand not found!!!")
+        }
+
+        return sendSuccessResponse(res, "Brand fetched Successfully...", checkBrand)
+
+    } catch (error) {
+        return ThrowError(res, 500, error.message)
+    }
+}
+
+export const updateBrand = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const sellerId = req.user._id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendBadRequestResponse(res, "Invalid BrandId!");
+        }
+        if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
+            return sendBadRequestResponse(res, "Invalid sellerId in token!");
+        }
+
+        const checkBrand = await BrandModel.findById(id);
+        if (!checkBrand) {
+            return sendNotFoundResponse(res, "Brand not found!!!");
+        }
+
+        const { brandName } = req.body;
+
+        if (brandName) {
+            const existingBrand = await BrandModel.findOne({ brandName, sellerId, _id: { $ne: id } });
+            if (existingBrand) {
+                return sendBadRequestResponse(res, "This brand name already exists for you!");
+            }
+        }
+
+        let brandImage = checkBrand.brandImage;
+        const mainFile = req.file || req.files?.brandImage?.[0];
+        if (mainFile) {
+            const result = await uploadFile(mainFile);
+            brandImage = result.url;
+        }
+
+        const updatedBrand = await BrandModel.findByIdAndUpdate(
+            id,
+            { brandName: brandName || checkBrand.brandName, brandImage },
+            { new: true, runValidators: true }
+        );
+
+        return sendSuccessResponse(res, "✅ Brand updated successfully!", updatedBrand);
+    } catch (error) {
+        return ThrowError(res, 500, error.message);
+    }
+};
+
+export const deleteBrand = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const sellerId = req.user?._id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendBadRequestResponse(res, "Invalid BrandId!");
+        }
+        if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
+            return sendBadRequestResponse(res, "Invalid sellerId in token!");
+        }
+
+        const brand = await BrandModel.findById(id);
+        if (!brand) {
+            return sendNotFoundResponse(res, "Brand not found!");
+        }
+
+        // Delete brand image from S3 if exists
+        if (brand.image) {
+            try {
+                await deleteFromS3(brand.image);
+            } catch (err) {
+                console.error("Failed to delete brand image from S3:", err.message);
+            }
+        }
+
+        // Delete brand from DB
+        await BrandModel.findByIdAndDelete(id);
+
+        // Remove brand reference from seller
+        await sellerModel.findByIdAndUpdate(
+            sellerId,
+            { $pull: { brandId: id } },
+            { new: true }
+        );
+
+        return sendSuccessResponse(res, "✅ Brand deleted successfully!", null);
+    } catch (error) {
+        return ThrowError(res, 500, error.message);
+    }
+};
+
+export const getSellerBrands = async (req, res) => {
+    const sellerId = req.user?._id;
+
+    const seller = await sellerModel.findById(sellerId).populate("brandId");
+    if (!seller) return sendNotFoundResponse(res, "Seller not found!");
+
+    return sendSuccessResponse(res, "Seller brands fetched successfully", seller.brandId);
 };

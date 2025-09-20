@@ -15,7 +15,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { createMainCategory, deleteMainCategoryById, getAllMainCategory, getMainCategoryById, updateMainCategoryById } from '../controller/mainCategory.controller.js';
 import { createSubCategory, deleteSubCategoryById, getAllSubCategory, getSubCategoryById, updateSubCategoryById } from '../controller/subCategory.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
-import { createBrand } from '../controller/brand.controller.js';
+import { createBrand, deleteBrand, getAllBrand, getBrandById, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
 
 
 const indexRouter = express.Router();
@@ -63,6 +63,11 @@ indexRouter.delete("/deleteSubCategoryById/:id", UserAuth, isAdmin, deleteSubCat
 
 // Brand
 indexRouter.post("/createBrand", sellerAuth, upload.fields([{ name: "brandImage", maxCount: 1 }]), createBrand);
+indexRouter.get("/getAllBrand", getAllBrand)
+indexRouter.get("/getBrandById/:id", getBrandById)
+indexRouter.patch("/updateBrand/:id", sellerAuth, upload.fields([{ name: "brandImage", maxCount: 1 }]), updateBrand)
+indexRouter.delete("/deleteBrand/:id", sellerAuth, deleteBrand)
+indexRouter.get("/getSellerBrands", sellerAuth, getSellerBrands)
 
 // Product
 indexRouter.post("/createProduct", sellerAuth, createProduct);

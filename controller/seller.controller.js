@@ -263,15 +263,13 @@ export const sellerLoginController = async (req, res) => {
                 message: "Invalid password!"
             });
         }
-
         const payload = {
-            id: seller._id,
+            _id: seller._id.toString(),
             name: seller.name,
             email: seller.email,
             mobileNo: seller.mobileNo,
             isSeller: true
         };
-
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 
         return res.status(200).json({
