@@ -9,67 +9,70 @@ import { ThrowError } from "../utils/Error.utils.js";
 import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import brandModel from "../model/brand.model.js";
 
+// Assign badges: NEW, TRENDING, TOP RATED
+export const assignBadges = async () => {
+    try {
+        // ===== 1️⃣ NEW BADGE (Last 3 products per seller) =====
+        const sellers = await Product.distinct("sellerId");
 
-// Helper: assign badges
-const assignBadges = async () => {
-    // 1️⃣ NEW: Last 3 products per seller
-    const sellers = await Product.distinct("sellerId");
-    for (let sellerId of sellers) {
-        const last3 = await Product.find({ sellerId })
-            .sort({ createdAt: -1 })
-            .limit(3);
+        for (let sellerId of sellers) {
+            // Get last 3 products for this seller, sorted by createdAt descending
+            const last3 = await Product.find({ sellerId })
+                .sort({ createdAt: -1 })
+                .limit(3);
 
-        // Reset previous NEW badges
-        await Product.updateMany({ sellerId, badge: "NEW" }, { $set: { badge: null } });
+            for (let p of last3) {
+                // Assign NEW only if badge is null (preserve manual badges)
+                if (!p.badge) {
+                    p.badge = "NEW";
+                    await p.save();
+                }
+            }
+        }
 
-        for (let p of last3) {
-            // Only assign NEW if it is not manually set
-            if (!["BEST DEAL", "CORALBAY CHOICE"].includes(p.badge)) {
-                p.badge = "NEW";
+        // ===== 2️⃣ TRENDING BADGE (Based on sales) =====
+        const orders = await OrderModal.find();
+        const productSalesCount = {};
+
+        orders.forEach((order) => {
+            order.items?.forEach((item) => {
+                const productId = item._id.toString();
+                const quantity = item.qty || 1;
+                productSalesCount[productId] = (productSalesCount[productId] || 0) + quantity;
+            });
+        });
+
+        const topSellingIds = Object.entries(productSalesCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([id]) => id);
+
+        for (let id of topSellingIds) {
+            const p = await Product.findById(id);
+            // Only assign TRENDING if badge is null
+            if (p && !p.badge) {
+                p.badge = "TRENDING";
                 await p.save();
             }
         }
-    }
 
-    // 2️⃣ TRENDING: Based on orders
-    const orders = await OrderModal.find();
-    const productSalesCount = {};
-    orders.forEach((order) => {
-        order.items?.forEach((item) => {
-            const productId = item._id.toString();
-            const quantity = item.qty || 1;
-            productSalesCount[productId] = (productSalesCount[productId] || 0) + quantity;
-        });
-    });
+        // ===== 3️⃣ TOP RATED BADGE =====
+        const topRatedProducts = await Product.find({ "rating.average": { $gt: 0 } })
+            .sort({ "rating.average": -1 })
+            .limit(10);
 
-    const topProducts = Object.entries(productSalesCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 20)
-        .map(([id]) => id);
-
-    await Product.updateMany({ badge: "TRENDING" }, { $set: { badge: null } });
-    for (let id of topProducts) {
-        const p = await Product.findById(id);
-        if (p && !["BEST DEAL", "CORALBAY CHOICE", "NEW"].includes(p.badge)) {
-            p.badge = "TRENDING";
-            await p.save();
+        for (let p of topRatedProducts) {
+            if (!p.badge) {
+                p.badge = "TOP RATED";
+                await p.save();
+            }
         }
-    }
 
-    // 3️⃣ TOP RATED
-    await Product.updateMany({ badge: "TOP RATED" }, { $set: { badge: null } });
-    const topRated = await Product.find({ "rating.average": { $gt: 0 } })
-        .sort({ "rating.average": -1 })
-        .limit(10);
-
-    for (let p of topRated) {
-        if (!["BEST DEAL", "CORALBAY CHOICE", "NEW", "TRENDING"].includes(p.badge)) {
-            p.badge = "TOP RATED";
-            await p.save();
-        }
+        console.log("Badges assigned successfully!");
+    } catch (err) {
+        console.error("Error assigning badges:", err.message);
     }
 };
-
 export const createProduct = async (req, res) => {
     try {
         const {
@@ -499,12 +502,14 @@ export const getProductAll = async (req, res) => {
 
         // Map default variant
         const productData = products.map((p) => {
-            const defaultVariant = variants.find((v) => v.productId.toString() === p._id.toString());
+            const defaultVariant = variants.find(
+                (v) => v.productId.toString() === p._id.toString()
+            );
             return {
                 ...p,
-                defaultVariant,
+                defaultVariant: defaultVariant || null,
             };
-        }).filter(p => p.defaultVariant != null);
+        });
 
         // Wishlist for user
         let wishlistProductIds = [];
