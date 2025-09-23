@@ -11,7 +11,11 @@ const productSchema = new mongoose.Schema({
   subCategory: { type: mongoose.Schema.Types.ObjectId, ref: "SubCategory", required: true },
 
   description: { type: String },
-
+  badge: {
+    type: String,
+    enum: ["NEW", "TRENDING", "BEST SELLER", "BEST DEAL", "TOP RATED", "CORALBAY CHOICE", null],
+    default: null
+  },
   rating: {
     average: { type: Number, default: 0 },
     totalReviews: { type: Number, default: 0 }

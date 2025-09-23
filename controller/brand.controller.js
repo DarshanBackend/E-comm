@@ -115,12 +115,12 @@ export const updateBrand = async (req, res) => {
 
         // === Validate seller ===
         if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
-            return sendBadRequestResponse(res, "Invalid or missing seller ID. Please login first!");
+            return sendBadRequestResponse(res, "Invalid sellerId in token!");
         }
 
         // === Validate brand ID ===
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return sendBadRequestResponse(res, "Invalid BrandId!");
+            return sendBadRequestResponse(res, "Invalid brandId!");
         }
 
         // === Check brand existence & ownership ===
@@ -129,13 +129,30 @@ export const updateBrand = async (req, res) => {
             return sendNotFoundResponse(res, "Brand not found or unauthorized!");
         }
 
-        const { brandName } = req.body;
+        const { brandName, mainCategoryId } = req.body;
+
+        // === Optional: validate mainCategoryId if provided ===
+        if (mainCategoryId && !mongoose.Types.ObjectId.isValid(mainCategoryId)) {
+            return sendBadRequestResponse(res, "Invalid mainCategoryId!");
+        }
+
+        if (mainCategoryId) {
+            const checkMainCategory = await mainCategoryModel.findById(mainCategoryId);
+            if (!checkMainCategory) {
+                return sendBadRequestResponse(res, "MainCategory does not exist!");
+            }
+        }
 
         // === Unique brand name validation ===
         if (brandName) {
-            const existingBrand = await BrandModel.findOne({ brandName, sellerId, _id: { $ne: id } });
+            const existingBrand = await BrandModel.findOne({
+                sellerId,
+                brandName: { $regex: new RegExp(`^${brandName}$`, "i") },
+                _id: { $ne: id } // exclude current brand
+            });
+
             if (existingBrand) {
-                return sendBadRequestResponse(res, "This brand name already exists for you!");
+                return sendBadRequestResponse(res, "You already have this brand with the same name!");
             }
         }
 
@@ -144,9 +161,9 @@ export const updateBrand = async (req, res) => {
         const mainFile = req.file || req.files?.brandImage?.[0];
 
         if (mainFile) {
-            // Delete old image if exists
+            // delete old image if exists
             if (brandImage) {
-                const oldKey = brandImage.split("/").pop(); // get file name
+                const oldKey = brandImage.split("/").pop();
                 try {
                     await s3.send(
                         new DeleteObjectCommand({
@@ -160,7 +177,7 @@ export const updateBrand = async (req, res) => {
                 }
             }
 
-            // Upload new image
+            // upload new image
             const result = await uploadFile(mainFile);
             brandImage = result.url;
         }
@@ -170,6 +187,7 @@ export const updateBrand = async (req, res) => {
             id,
             {
                 brandName: brandName || checkBrand.brandName,
+                mainCategoryId: mainCategoryId || checkBrand.mainCategoryId,
                 brandImage
             },
             { new: true, runValidators: true }
@@ -241,4 +259,35 @@ export const getSellerBrands = async (req, res) => {
     if (!seller) return sendNotFoundResponse(res, "Seller not found!");
 
     return sendSuccessResponse(res, "Seller brands fetched successfully", seller.brandId);
+};
+
+export const getBrandByMainCategory = async (req, res) => {
+    try {
+        const { mainCategoryId } = req.params;
+
+        // Validate MainCategoryId
+        if (!mongoose.Types.ObjectId.isValid(mainCategoryId)) {
+            return sendBadRequestResponse(res, "Invalid mainCategoryId");
+        }
+
+        // Check if MainCategory exists
+        const mainCategory = await mainCategoryModel.findById(mainCategoryId).lean();
+        if (!mainCategory) {
+            return sendNotFoundResponse(res, "MainCategory not found");
+        }
+
+        // Fetch brand for this mainCategory
+        const brand = await BrandModel.find({ mainCategoryId })
+            .select("brandName brandImage ")
+            .lean();
+
+        return sendSuccessResponse(res, `Brand for MainCategory fetched successfully`, {
+            mainCategoryId: mainCategory._id,
+            mainCategoryName: mainCategory.mainCategoryName,
+            brand
+        });
+
+    } catch (error) {
+        return sendErrorResponse(res, 500, error.message);
+    }
 };

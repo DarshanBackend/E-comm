@@ -9,6 +9,67 @@ import { ThrowError } from "../utils/Error.utils.js";
 import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import brandModel from "../model/brand.model.js";
 
+
+// Helper: assign badges
+const assignBadges = async () => {
+    // 1️⃣ NEW: Last 3 products per seller
+    const sellers = await Product.distinct("sellerId");
+    for (let sellerId of sellers) {
+        const last3 = await Product.find({ sellerId })
+            .sort({ createdAt: -1 })
+            .limit(3);
+
+        // Reset previous NEW badges
+        await Product.updateMany({ sellerId, badge: "NEW" }, { $set: { badge: null } });
+
+        for (let p of last3) {
+            // Only assign NEW if it is not manually set
+            if (!["BEST DEAL", "CORALBAY CHOICE"].includes(p.badge)) {
+                p.badge = "NEW";
+                await p.save();
+            }
+        }
+    }
+
+    // 2️⃣ TRENDING: Based on orders
+    const orders = await OrderModal.find();
+    const productSalesCount = {};
+    orders.forEach((order) => {
+        order.items?.forEach((item) => {
+            const productId = item._id.toString();
+            const quantity = item.qty || 1;
+            productSalesCount[productId] = (productSalesCount[productId] || 0) + quantity;
+        });
+    });
+
+    const topProducts = Object.entries(productSalesCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20)
+        .map(([id]) => id);
+
+    await Product.updateMany({ badge: "TRENDING" }, { $set: { badge: null } });
+    for (let id of topProducts) {
+        const p = await Product.findById(id);
+        if (p && !["BEST DEAL", "CORALBAY CHOICE", "NEW"].includes(p.badge)) {
+            p.badge = "TRENDING";
+            await p.save();
+        }
+    }
+
+    // 3️⃣ TOP RATED
+    await Product.updateMany({ badge: "TOP RATED" }, { $set: { badge: null } });
+    const topRated = await Product.find({ "rating.average": { $gt: 0 } })
+        .sort({ "rating.average": -1 })
+        .limit(10);
+
+    for (let p of topRated) {
+        if (!["BEST DEAL", "CORALBAY CHOICE", "NEW", "TRENDING"].includes(p.badge)) {
+            p.badge = "TOP RATED";
+            await p.save();
+        }
+    }
+};
+
 export const createProduct = async (req, res) => {
     try {
         const {
@@ -414,5 +475,60 @@ export const getProductsByBrand = async (req, res) => {
 
     } catch (error) {
         return sendErrorResponse(res, 500, error.message);
+    }
+};
+
+export const getProductAll = async (req, res) => {
+    const userId = req.user?.id;
+
+    try {
+        // Assign badges before fetching
+        await assignBadges();
+
+        // Fetch all products
+        const products = await Product.find({ isActive: true })
+            .populate("brand")
+            .populate("mainCategory")
+            .populate("category")
+            .populate("subCategory")
+            .lean();
+
+        // Fetch default variants
+        const productIds = products.map((p) => p._id);
+        const variants = await ProductVariant.find({ productId: { $in: productIds } }).lean();
+
+        // Map default variant
+        const productData = products.map((p) => {
+            const defaultVariant = variants.find((v) => v.productId.toString() === p._id.toString());
+            return {
+                ...p,
+                defaultVariant,
+            };
+        }).filter(p => p.defaultVariant != null);
+
+        // Wishlist for user
+        let wishlistProductIds = [];
+        if (userId) {
+            const wishlistItems = await WishlistModal.find({ userId }).select("productId");
+            wishlistProductIds = wishlistItems.map((item) => item.productId?.toString());
+        }
+
+        const productsWithWishlist = productData.map((product) => ({
+            ...product,
+            isWishlist: wishlistProductIds.includes(product._id.toString()),
+        }));
+
+        return res.status(200).json({
+            status: true,
+            message: "Products fetched successfully",
+            data: productsWithWishlist,
+        });
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({
+            status: false,
+            message: "Server Error",
+            error: error.message,
+        });
     }
 };
