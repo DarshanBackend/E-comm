@@ -5,8 +5,8 @@ import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, up
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
-import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductById, getProductBySubCategory, updateProduct } from '../controller/product.controller.js';
-import { addToCartController, deleteCartItemController, getMyCartController, updateCartItemController } from '../controller/cart.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductById, getProductBySubCategory, getProductsByBrand, updateProduct } from '../controller/product.controller.js';
+import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
 import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
 import { cancelMyOrderController, deleteMyOrderController, myOrderController, newOrderController, selectUserAddressController, selectUserBillingAddressController, sellerChangeOrderStatusController, updateMyOrderController, userStatusFilterController } from '../controller/order.controller.js';
@@ -77,6 +77,7 @@ indexRouter.patch("/updateProduct/:id", sellerAuth, updateProduct);
 indexRouter.delete("/deleteProduct/:id", sellerAuth, deleteProduct);
 indexRouter.get("/getProductBySubCategory/:subCategoryId", getProductBySubCategory);
 indexRouter.get("/getCategoryHierarchy", getCategoryHierarchy);
+indexRouter.get("/getProductsByBrand/:brandId", getProductsByBrand);
 
 // Product
 indexRouter.post("/createProductVariant", sellerAuth, upload.fields([{ name: "images", maxCount: 1 }]), createProductVariant);
@@ -118,11 +119,8 @@ indexRouter.delete("/user/billingaddress/delete/:billingaddressId", UserAuth, us
 indexRouter.get("/user/billingaddress", UserAuth, getUserBillingAddressController);
 
 //cart.route.js
-indexRouter.post("/add/cart/:productId", UserAuth, addToCartController);
+indexRouter.post("/add/cart/:productId", UserAuth, toggleCartItemController);
 indexRouter.get("/my/cart", UserAuth, getMyCartController)
-indexRouter.patch("/update/cart/:productId", UserAuth, updateCartItemController)
-indexRouter.delete("/delete/item/:cartItemId", UserAuth, deleteCartItemController)
-
 
 //change password
 indexRouter.post("/user/change/password", UserAuth, userPasswordChangeController);

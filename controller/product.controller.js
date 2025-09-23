@@ -7,6 +7,7 @@ import SubCategoryModel from "../model/subCategory.model.js";
 import ProductVariant from "../model/productvarient.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
 import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
+import brandModel from "../model/brand.model.js";
 
 export const createProduct = async (req, res) => {
     try {
@@ -124,7 +125,6 @@ export const createProduct = async (req, res) => {
         return ThrowError(res, 500, error.message);
     }
 };
-
 
 export const getAllProduct = async (req, res) => {
     try {
@@ -303,7 +303,7 @@ export const getProductBySubCategory = async (req, res) => {
         }
 
         const products = await Product.find({ subCategory: subCategoryId })
-            .select("brand title description mainCategory category subCategory productImage");
+            .select("brand title description mainCategory category subCategory");
 
         if (!products || products.length === 0) {
             return sendNotFoundResponse(res, "No products found for this subCategory!");
@@ -382,5 +382,37 @@ export const getCategoryHierarchy = async (req, res) => {
 
     } catch (error) {
         return ThrowError(res, 500, error.message);
+    }
+};
+
+export const getProductsByBrand = async (req, res) => {
+    try {
+        const { brandId } = req.params;
+
+        // Validate brandId
+        if (!mongoose.Types.ObjectId.isValid(brandId)) {
+            return sendBadRequestResponse(res, "Invalid brand ID");
+        }
+
+        // Check if brand exists
+        const brand = await brandModel.findById(brandId).lean();
+        if (!brand) {
+            return sendNotFoundResponse(res, "Brand not found");
+        }
+
+        // Fetch products for this brand
+        const products = await Product.find({ brand: brandId, isActive: true })
+            .select("title mainCategory category subCategory description")
+            .lean();
+
+        return sendSuccessResponse(res, `Products for brand ${brand.brandName} fetched successfully`, {
+            brandId: brand._id,
+            brandName: brand.brandName,
+            brandImage: brand.brandImage || null,
+            products
+        });
+
+    } catch (error) {
+        return sendErrorResponse(res, 500, error.message);
     }
 };

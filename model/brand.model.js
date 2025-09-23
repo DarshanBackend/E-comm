@@ -3,7 +3,11 @@ import mongoose from "mongoose";
 const brandSchema = mongoose.Schema({
     sellerId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref:"seller"
+        ref: "seller"
+    },
+    mainCategoryId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "MainCategory"
     },
     brandImage: {
         type: String
