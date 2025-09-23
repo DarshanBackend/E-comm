@@ -7,14 +7,25 @@ import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, updateProduct } from '../controller/product.controller.js';
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
+<<<<<<< HEAD
+=======
+import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
+import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
+// import { cancelMyOrderController, deleteMyOrderController, myOrderController, newOrderController, selectUserAddressController, selectUserBillingAddressController, sellerChangeOrderStatusController, updateMyOrderController, userStatusFilterController } from '../controller/order.controller.js';
+>>>>>>> e3528ca1f20d9b3f27d282b00a7412daf16c4580
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
 import { createMainCategory, deleteMainCategoryById, getAllMainCategory, getMainCategoryById, updateMainCategoryById } from '../controller/mainCategory.controller.js';
 import { createSubCategory, deleteSubCategoryById, getAllSubCategory, getSubCategoryById, updateSubCategoryById } from '../controller/subCategory.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
+<<<<<<< HEAD
 import { createBrand, deleteBrand, getAllBrand, getBrandById, getBrandByMainCategory, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controller/wishlist.controller.js';
 import { createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
+=======
+import { createBrand, deleteBrand, getAllBrand, getBrandById, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
+import { cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
+>>>>>>> e3528ca1f20d9b3f27d282b00a7412daf16c4580
 
 
 const indexRouter = express.Router();
@@ -44,14 +55,14 @@ indexRouter.get("/getMainCategoryById/:id", getMainCategoryById)
 indexRouter.patch("/updateMainCategoryById/:id", UserAuth, isAdmin, updateMainCategoryById)
 indexRouter.delete("/deleteMainCategoryById/:id", UserAuth, isAdmin, deleteMainCategoryById)
 
-// Category 
+// Category
 indexRouter.post("/createCategory", UserAuth, isAdmin, createCategory)
 indexRouter.get("/getAllCategory", getAllCategory)
 indexRouter.get("/getCategoryById/:id", getCategoryById)
 indexRouter.patch("/updateCategoryById/:id", UserAuth, isAdmin, updateCategoryById)
 indexRouter.delete("/deleteCategoryById/:id", UserAuth, isAdmin, deleteCategoryById)
 
-// SubCategory 
+// SubCategory
 indexRouter.post("/createSubCategory", UserAuth, isAdmin, createSubCategory)
 indexRouter.get("/getAllSubCategory", getAllSubCategory)
 indexRouter.get("/getSubCategoryById/:id", getSubCategoryById)
@@ -149,6 +160,33 @@ indexRouter.get("/getUser", UserAuth, AuthController.getUser)
 indexRouter.get("/getAllSeller", getAllSeller)
 indexRouter.get("/getSeller", sellerAuth, getSeller)
 
+<<<<<<< HEAD
+=======
+// Coupon
+indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
+indexRouter.get("/getAllCoupon", UserAuth, getAllCoupon);
+indexRouter.get("/getCouponById/:id", UserAuth, getCouponById);
+indexRouter.patch("/seller/updateCoupon/:id", sellerAuth, updateCoupon);
+indexRouter.delete("/seller/deleteCoupon/:id", sellerAuth, deleteCoupon);
+indexRouter.post("/apply-coupon", applyCouponController);
+
+
+//order.routes.js
+indexRouter.post("/new/order", UserAuth, newOrderController);
+indexRouter.get("/my/order", UserAuth, myOrderController);
+indexRouter.get("/all/orders", sellerAuth, getSellerAllOrdersController);
+indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
+indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
+indexRouter.get("/order/summery", UserAuth, orderSummeryController)
+
+// payment.route.js
+indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);
+indexRouter.get("/my/payments", UserAuth, myPaymentController);
+indexRouter.get("/all/payments", sellerAuth, getSellerPaymentsController);
+indexRouter.get("/download/invoice/:paymentId", UserAuth, downloadInvoiceController);
+indexRouter.patch("/payment/status/:paymentId", sellerAuth, paymentStatusChangeController);
+
+>>>>>>> e3528ca1f20d9b3f27d282b00a7412daf16c4580
 const s3Client = new S3Client({
     region: process.env.S3_REGION,
     credentials: {

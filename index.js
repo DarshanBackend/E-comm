@@ -17,7 +17,7 @@ const app = express();
 //comman middlware
 app.use(express.json()); //for json transction
 app.use(express.urlencoded({ extended: true }));
-app.use(logger("common")); //for logging all apis and thire response in console.
+app.use(logger("dev")); //for logging all apis and thire response in console.
 app.use(express.urlencoded({ extended: true }));
 
 //port define
@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 9000;
 
 //home route
 app.get("/", async (req, res) => {
-    return res.send("<h1>Food Delivery Api's Is Working...!</h1>")
+    return res.send("<h1>Ecommer-web Api's Is Working...!</h1>")
 });
 
 //server health check
