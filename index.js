@@ -17,7 +17,7 @@ const app = express();
 //comman middlware
 app.use(express.json()); //for json transction
 app.use(express.urlencoded({ extended: true }));
-app.use(logger("common")); //for logging all apis and thire response in console.
+app.use(logger("dev")); //for logging all apis and thire response in console.
 app.use(express.urlencoded({ extended: true }));
 
 //port define

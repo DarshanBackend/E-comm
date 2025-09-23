@@ -136,7 +136,7 @@ indexRouter.get("/getAllnewUser", AuthController.getAllnewUser)
 indexRouter.get("/getUser", UserAuth, AuthController.getUser)
 indexRouter.get("/getAllSeller", getAllSeller)
 indexRouter.get("/getSeller", sellerAuth, getSeller)
-
+ 
 // Coupon
 indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
 indexRouter.get("/getAllCoupon", UserAuth, getAllCoupon);
