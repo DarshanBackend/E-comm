@@ -34,7 +34,7 @@ indexRouter.post("/new/seller", newSellerController)
 indexRouter.post("/verify/seller/otp", verifySellerMobileOtpController)
 indexRouter.post("/seller/login", sellerLoginController)
 indexRouter.post("/seller/forget/password", sellerForgetPasswordController);
-indexRouter.post("/seller/verify/forget/password", sellerVerifyForgetOtpController)
+indexRouter.post("/seller/verify/forget/password", sellerVerifyForgetOtpController);
 indexRouter.post("/seller/reset/password", sellerPasswordResetController);
 
 
@@ -157,7 +157,6 @@ indexRouter.get("/all/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
-
 
 
 const s3Client = new S3Client({
