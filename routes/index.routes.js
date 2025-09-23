@@ -34,7 +34,7 @@ indexRouter.post("/new/seller", newSellerController)
 indexRouter.post("/verify/seller/otp", verifySellerMobileOtpController)
 indexRouter.post("/seller/login", sellerLoginController)
 indexRouter.post("/seller/forget/password", sellerForgetPasswordController);
-indexRouter.post("/seller/verify/forget/password", sellerVerifyForgetOtpController)
+indexRouter.post("/seller/verify/forget/password", sellerVerifyForgetOtpController);
 indexRouter.post("/seller/reset/password", sellerPasswordResetController);
 
 
