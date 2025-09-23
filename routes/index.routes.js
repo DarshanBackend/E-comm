@@ -9,13 +9,14 @@ import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getP
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { applyCouponController, createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
 import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
-import { cancelMyOrderController, deleteMyOrderController, myOrderController, newOrderController, selectUserAddressController, selectUserBillingAddressController, sellerChangeOrderStatusController, updateMyOrderController, userStatusFilterController } from '../controller/order.controller.js';
+// import { cancelMyOrderController, deleteMyOrderController, myOrderController, newOrderController, selectUserAddressController, selectUserBillingAddressController, sellerChangeOrderStatusController, updateMyOrderController, userStatusFilterController } from '../controller/order.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
 import { createMainCategory, deleteMainCategoryById, getAllMainCategory, getMainCategoryById, updateMainCategoryById } from '../controller/mainCategory.controller.js';
 import { createSubCategory, deleteSubCategoryById, getAllSubCategory, getSubCategoryById, updateSubCategoryById } from '../controller/subCategory.controller.js';
 import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
 import { createBrand, deleteBrand, getAllBrand, getBrandById, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
+import { cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
 
 
 const indexRouter = express.Router();
@@ -47,14 +48,14 @@ indexRouter.get("/getMainCategoryById/:id", getMainCategoryById)
 indexRouter.patch("/updateMainCategoryById/:id", UserAuth, isAdmin, updateMainCategoryById)
 indexRouter.delete("/deleteMainCategoryById/:id", UserAuth, isAdmin, deleteMainCategoryById)
 
-// Category 
+// Category
 indexRouter.post("/createCategory", UserAuth, isAdmin, createCategory)
 indexRouter.get("/getAllCategory", getAllCategory)
 indexRouter.get("/getCategoryById/:id", getCategoryById)
 indexRouter.patch("/updateCategoryById/:id", UserAuth, isAdmin, updateCategoryById)
 indexRouter.delete("/deleteCategoryById/:id", UserAuth, isAdmin, deleteCategoryById)
 
-// SubCategory 
+// SubCategory
 indexRouter.post("/createSubCategory", UserAuth, isAdmin, createSubCategory)
 indexRouter.get("/getAllSubCategory", getAllSubCategory)
 indexRouter.get("/getSubCategoryById/:id", getSubCategoryById)
@@ -134,7 +135,7 @@ indexRouter.get("/getAllnewUser", AuthController.getAllnewUser)
 indexRouter.get("/getUser", UserAuth, AuthController.getUser)
 indexRouter.get("/getAllSeller", getAllSeller)
 indexRouter.get("/getSeller", sellerAuth, getSeller)
- 
+
 // Coupon
 indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
 indexRouter.get("/getAllCoupon", UserAuth, getAllCoupon);
@@ -145,18 +146,12 @@ indexRouter.post("/apply-coupon", applyCouponController);
 
 
 //order.routes.js
-indexRouter.put("/users/select-address/:addressId", UserAuth, selectUserAddressController)
-indexRouter.put("/users/select-billingaddress/:billingaddressId", UserAuth, selectUserBillingAddressController)
-indexRouter.post("/new/order", UserAuth, newOrderController)
-indexRouter.patch("/update/myorder/:orderId", UserAuth, updateMyOrderController);
-indexRouter.delete("/delete/myorder/:itemId", UserAuth, deleteMyOrderController);
-indexRouter.post("/user/order/cancel/:itemId", UserAuth, cancelMyOrderController);
+indexRouter.post("/new/order", UserAuth, newOrderController);
 indexRouter.get("/my/order", UserAuth, myOrderController);
-indexRouter.get("/status/filter", UserAuth, userStatusFilterController);
-indexRouter.patch("/seller/order/status/:orderId/:itemId", sellerAuth, sellerChangeOrderStatusController);
-
-
-
+indexRouter.get("/all/orders", sellerAuth, getSellerAllOrdersController);
+indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
+indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
+indexRouter.get("/order/summery", UserAuth, orderSummeryController)
 
 // payment.route.js
 indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);

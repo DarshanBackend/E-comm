@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 9000;
 
 //home route
 app.get("/", async (req, res) => {
-    return res.send("<h1>Food Delivery Api's Is Working...!</h1>")
+    return res.send("<h1>Ecommer-web Api's Is Working...!</h1>")
 });
 
 //server health check

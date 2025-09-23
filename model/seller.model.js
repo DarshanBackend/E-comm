@@ -33,6 +33,9 @@ const sellerSchema = new mongoose.Schema({
     },
     products: [
         { type: mongoose.Schema.Types.ObjectId, ref: "Product" }
+    ],
+    orders:[
+        {type: mongoose.Schema.Types.ObjectId, ref: "Order"}
     ]
 });
 
