@@ -153,7 +153,7 @@ indexRouter.get("/getSeller", sellerAuth, getSeller)
 //order.routes.js
 indexRouter.post("/new/order", UserAuth, newOrderController);
 indexRouter.get("/my/order", UserAuth, myOrderController);
-indexRouter.get("/all/orders", sellerAuth, getSellerAllOrdersController);
+indexRouter.get("/seller/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
