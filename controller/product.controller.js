@@ -6,8 +6,10 @@ import CategoryModel from "../model/category.model.js";
 import SubCategoryModel from "../model/subCategory.model.js";
 import ProductVariant from "../model/productvarient.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
-import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
+import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import brandModel from "../model/brand.model.js";
+import productModel from "../model/product.model.js";
+import categoryModel from "../model/category.model.js";
 
 // Assign badges: NEW, TRENDING, TOP RATED
 export const assignBadges = async () => {
@@ -590,3 +592,20 @@ export const getProductAll = async (req, res) => {
         });
     }
 };
+
+export const getFilterProductsController = async (req, res) => {
+    try {
+        if (!req.query) {
+            const categories = await categoryModel.find();
+            return res.status(200).json({ message: "All Categories", categories });
+        }
+        // const filter = {};
+        // if (req.query.category) filter.category = req.query.category;
+
+
+        return sendSuccessResponse(res, "Get Filter data", );
+    } catch (error) {
+        console.log(error.message);
+        return sendErrorResponse(res, 500, "Error during Get Filter data", error.message);
+    }
+}
