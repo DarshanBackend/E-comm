@@ -5,7 +5,7 @@ import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, up
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
-import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, updateProduct } from '../controller/product.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -16,6 +16,7 @@ import { createBrand, deleteBrand, getAllBrand, getBrandById, getBrandByMainCate
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controller/wishlist.controller.js';
 import { createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
 import { cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
+import { createReview, deleteReview, dislikeReview, getProductReviews, likeReview, updateReview } from '../controller/review.controller.js';
 
 
 const indexRouter = express.Router();
@@ -72,7 +73,8 @@ indexRouter.get("/getBrandByMainCategory/:mainCategoryId", getBrandByMainCategor
 indexRouter.post("/createProduct", sellerAuth, createProduct);
 indexRouter.get("/getAllProduct", getAllProduct);
 indexRouter.get("/getProductById/:id", getProductById);
-indexRouter.patch("/updateProduct/:id", sellerAuth, updateProduct);
+indexRouter.patch("/updateProduct/:id/love_about", sellerAuth, updateProduct);
+indexRouter.patch("/updateLoveAboutPoints/:id", sellerAuth, updateLoveAboutPoints);
 indexRouter.delete("/deleteProduct/:id", sellerAuth, deleteProduct);
 indexRouter.get("/getProductBySubCategory/:subCategoryId", getProductBySubCategory);
 indexRouter.get("/getCategoryHierarchy", getCategoryHierarchy);
@@ -157,6 +159,15 @@ indexRouter.get("/all/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
+
+//reviw.model.js
+indexRouter.post('/createReview', UserAuth, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]), createReview);
+indexRouter.patch('/updateReview/:reviewId', UserAuth, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]), updateReview);
+indexRouter.delete('/deleteReview/:reviewId', UserAuth, deleteReview);
+indexRouter.get('/getProductReviews/:productId', getProductReviews);
+indexRouter.post('/likeReview/:reviewId', UserAuth, likeReview);
+indexRouter.post('/dislikeReview/:reviewId', UserAuth, dislikeReview);
+
 
 
 const s3Client = new S3Client({

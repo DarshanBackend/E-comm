@@ -73,6 +73,7 @@ export const assignBadges = async () => {
         console.error("Error assigning badges:", err.message);
     }
 };
+
 export const createProduct = async (req, res) => {
     try {
         const {
@@ -84,26 +85,22 @@ export const createProduct = async (req, res) => {
             description,
             productDetails,
             shippingReturn,
-            warrantySupport
+            warrantySupport,
+            love_about
         } = req.body;
 
         const sellerId = req.user?._id;
 
-        // Validate sellerId
         if (!sellerId || !mongoose.Types.ObjectId.isValid(sellerId)) {
             return sendBadRequestResponse(res, "Invalid or missing seller ID. Please login first!");
         }
 
-        // Fetch seller and their brands
         const seller = await sellerModel.findById(sellerId).populate("brandId");
         if (!seller) return sendNotFoundResponse(res, "Seller not found or unauthorized!");
-
-        // Check if seller has at least one brand
         if (!seller.brandId || seller.brandId.length === 0) {
             return sendBadRequestResponse(res, "Please add a brand first before creating a product.");
         }
 
-        // Use the provided brand or default to the first seller brand
         let selectedBrand;
         if (brand) {
             const isValidBrand = seller.brandId.some(b => b._id.toString() === brand);
@@ -112,10 +109,9 @@ export const createProduct = async (req, res) => {
             }
             selectedBrand = brand;
         } else {
-            selectedBrand = seller.brandId[0]._id; // auto select first seller brand
+            selectedBrand = seller.brandId[0]._id;
         }
 
-        // Validate required fields
         if (!title || !mainCategory || !category || !subCategory) {
             return sendBadRequestResponse(res, "title, mainCategory, category and subCategory are required!");
         }
@@ -124,7 +120,6 @@ export const createProduct = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(category)) return sendBadRequestResponse(res, "Invalid category ID!");
         if (!mongoose.Types.ObjectId.isValid(subCategory)) return sendBadRequestResponse(res, "Invalid subCategory ID!");
 
-        // Check categories existence
         const [mainCatExists, catExists, subCatExists] = await Promise.all([
             MainCategoryModel.findById(mainCategory),
             CategoryModel.findById(category),
@@ -135,7 +130,6 @@ export const createProduct = async (req, res) => {
         if (!catExists) return sendNotFoundResponse(res, "Category does not exist!");
         if (!subCatExists) return sendNotFoundResponse(res, "Sub category does not exist!");
 
-        // Validate productDetails fields
         if (productDetails) {
             const { material, fit, closure, weight } = productDetails;
             if (material && typeof material !== "string") return sendBadRequestResponse(res, "Material must be a string!");
@@ -144,7 +138,6 @@ export const createProduct = async (req, res) => {
             if (weight && typeof weight !== "string") return sendBadRequestResponse(res, "Weight must be a string!");
         }
 
-        // Validate customerSupport
         if (warrantySupport?.customerSupport) {
             const { email, phone, available } = warrantySupport.customerSupport;
             if (email && typeof email !== "string") return sendBadRequestResponse(res, "Customer support email must be a string!");
@@ -152,11 +145,24 @@ export const createProduct = async (req, res) => {
             if (available && typeof available !== "string") return sendBadRequestResponse(res, "Customer support availability must be a string!");
         }
 
-        // Check duplicate product
+        // ✅ Validate love_about (Required from Seller)
+        if (!love_about || !Array.isArray(love_about) || love_about.length === 0) {
+            return sendBadRequestResponse(res, "love_about is required and must be a non-empty array!");
+        }
+
+        for (const item of love_about) {
+            if (typeof item !== 'object' || item === null) {
+                return sendBadRequestResponse(res, "Each love_about item must be an object!");
+            }
+            if (!item.point || typeof item.point !== 'string') {
+                return sendBadRequestResponse(res, "Each love_about item must have a 'point' string!");
+            }
+            // Seller rate not required
+        }
+
         const existingProduct = await Product.findOne({ title, sellerId, category });
         if (existingProduct) return sendBadRequestResponse(res, "This product is already added!");
 
-        // Create product
         const newProduct = await Product.create({
             sellerId,
             brand: selectedBrand,
@@ -167,10 +173,10 @@ export const createProduct = async (req, res) => {
             description,
             productDetails,
             shippingReturn,
-            warrantySupport
+            warrantySupport,
+            love_about // User will add ratings when reviewing
         });
 
-        // Add product to seller
         await sellerModel.findByIdAndUpdate(
             sellerId,
             { $push: { products: newProduct._id } },
@@ -237,7 +243,8 @@ export const updateProduct = async (req, res) => {
             description,
             productDetails,
             shippingReturn,
-            warrantySupport
+            warrantySupport,
+            love_about
         } = req.body;
 
         const sellerId = req.user?._id;
@@ -250,15 +257,9 @@ export const updateProduct = async (req, res) => {
             return sendBadRequestResponse(res, "Invalid product ID!");
         }
 
-        if (!mongoose.Types.ObjectId.isValid(mainCategory)) {
-            return sendBadRequestResponse(res, "Invalid mainCategory ID!");
-        }
-        if (!mongoose.Types.ObjectId.isValid(category)) {
-            return sendBadRequestResponse(res, "Invalid category ID!");
-        }
-        if (!mongoose.Types.ObjectId.isValid(subCategory)) {
-            return sendBadRequestResponse(res, "Invalid subCategory ID!");
-        }
+        if (!mongoose.Types.ObjectId.isValid(mainCategory)) return sendBadRequestResponse(res, "Invalid mainCategory ID!");
+        if (!mongoose.Types.ObjectId.isValid(category)) return sendBadRequestResponse(res, "Invalid category ID!");
+        if (!mongoose.Types.ObjectId.isValid(subCategory)) return sendBadRequestResponse(res, "Invalid subCategory ID!");
 
         const [mainCatExists, catExists, subCatExists] = await Promise.all([
             MainCategoryModel.findById(mainCategory),
@@ -266,15 +267,9 @@ export const updateProduct = async (req, res) => {
             SubCategoryModel.findById(subCategory),
         ]);
 
-        if (!mainCatExists) {
-            return sendNotFoundResponse(res, "Main category does not exist!");
-        }
-        if (!catExists) {
-            return sendNotFoundResponse(res, "Category does not exist!");
-        }
-        if (!subCatExists) {
-            return sendNotFoundResponse(res, "Sub category does not exist!");
-        }
+        if (!mainCatExists) return sendNotFoundResponse(res, "Main category does not exist!");
+        if (!catExists) return sendNotFoundResponse(res, "Category does not exist!");
+        if (!subCatExists) return sendNotFoundResponse(res, "Sub category does not exist!");
 
         if (productDetails) {
             const { material, fit, closure, weight } = productDetails;
@@ -289,6 +284,22 @@ export const updateProduct = async (req, res) => {
             if (email && typeof email !== "string") return sendBadRequestResponse(res, "Customer support email must be a string!");
             if (phone && typeof phone !== "string") return sendBadRequestResponse(res, "Customer support phone must be a string!");
             if (available && typeof available !== "string") return sendBadRequestResponse(res, "Customer support availability must be a string!");
+        }
+
+        // 🔹 Validate love_about if passed
+        if (love_about) {
+            if (!Array.isArray(love_about)) {
+                return sendBadRequestResponse(res, "love_about must be an array!");
+            }
+
+            for (const item of love_about) {
+                if (typeof item !== 'object' || item === null) {
+                    return sendBadRequestResponse(res, "Each love_about item must be an object!");
+                }
+                if (!item.point || typeof item.point !== 'string') {
+                    return sendBadRequestResponse(res, "Each love_about item must have a 'point' string!");
+                }
+            }
         }
 
         const seller = await sellerModel.findById(sellerId);
@@ -312,7 +323,8 @@ export const updateProduct = async (req, res) => {
                 description,
                 productDetails,
                 shippingReturn,
-                warrantySupport
+                warrantySupport,
+                love_about: love_about || product.love_about // keep existing if not passed
             },
             { new: true, runValidators: true }
         );
@@ -320,6 +332,47 @@ export const updateProduct = async (req, res) => {
         return sendSuccessResponse(res, "✅ Product updated successfully!", updatedProduct);
 
     } catch (error) {
+        return ThrowError(res, 500, error.message);
+    }
+};
+
+export const updateLoveAboutPoints = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { updates } = req.body;
+        const sellerId = req.user?._id;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return sendBadRequestResponse(res, "Invalid product ID!");
+        }
+        if (!sellerId) return sendBadRequestResponse(res, "Seller ID required!");
+        if (!Array.isArray(updates) || updates.length === 0) {
+            return sendBadRequestResponse(res, "updates must be a non-empty array!");
+        }
+
+        // Find product
+        const product = await Product.findOne({ _id: id, sellerId });
+        if (!product) return sendNotFoundResponse(res, "Product not found or unauthorized!");
+
+        const updatedItems = [];
+
+        for (const update of updates) {
+            const { love_aboutId, point } = update;
+            if (!love_aboutId || !point) continue;
+
+            const itemIndex = product.love_about.findIndex(item => item._id.toString() === love_aboutId);
+            if (itemIndex === -1) continue;
+
+            product.love_about[itemIndex].point = point;
+            updatedItems.push(product.love_about[itemIndex]);
+        }
+
+        await product.save();
+
+        return sendSuccessResponse(res, "✅ love_about points updated successfully!", updatedItems);
+
+    } catch (error) {
+        console.error('Update Love About Points Error:', error);
         return ThrowError(res, 500, error.message);
     }
 };

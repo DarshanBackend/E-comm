@@ -51,6 +51,17 @@ const productSchema = new mongoose.Schema({
     faqs: [{ type: String }]
   },
 
+  love_about: [
+    {
+      point: String,
+      ratings: [
+        {
+          userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          rate: Number
+        }
+      ]
+    }
+  ],
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
