@@ -1,4 +1,4 @@
-import mongoose, { model } from "mongoose";
+import mongoose from "mongoose";
 import { sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import orderModel from "../model/order.model.js";
 import paymentModel from "../model/payment.model.js";
@@ -119,7 +119,7 @@ export const myPaymentController = async (req, res) => {
         //         const address = order.userId.address.id(order.deliveryAddress);
         //         order.deliveryAddress = address || null;
         //     } else {
-        //         order.deliveryAddress = null;
+        //         order.deliveryAddress = null; 
         //     }
         //     return payment;
         // });
@@ -274,7 +274,7 @@ export const downloadInvoiceController = async (req, res) => {
         });
 
         y += rowHeight;
-        
+
         // Rows
         products.forEach((item, index) => {
             const product = item.productId;
@@ -286,7 +286,7 @@ export const downloadInvoiceController = async (req, res) => {
             }
 
             x = tableStartX;
-            const rowValues = [
+            const rowValues = [                   
                 index + 1,
                 `${product.title} (${variant.color || "N/A"}, Size: ${variant.size || "N/A"})`,
                 item.quantity,
@@ -338,9 +338,6 @@ export const downloadInvoiceController = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
-
-
-
 
 
 export const paymentStatusChangeController = async (req, res) => {
