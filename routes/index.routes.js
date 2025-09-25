@@ -5,7 +5,7 @@ import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, up
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
-import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getMostWishlistedProducts, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, getSimilarProducts, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -19,6 +19,10 @@ import { cancelMyOrderController, getSellerAllOrdersController, myOrderControlle
 import { createReview, deleteReview, dislikeReview, getProductReviews, likeReview, updateReview } from '../controller/review.controller.js';
 import { addProductBannerController, deleteProductBannerController, getProductBannerController, updateProductBannerController } from '../controller/product.banner.controller.js';
 import { applyJobController, currentJobController, deleteJobApplicationController, getCurrentJobByIdController, getMyJobapplicationsController } from '../controller/job.application.controller.js';
+import { adminJobsController, createJobController, deleteJobController, updateJobController } from '../controller/jobs.controller.js';
+import { createfaqCategory, deletefaqCategoryById, getAllfaqCategory, getfaqCategoryById, updatefaqCategoryById } from '../controller/faqCategory.controller.js';
+import { createFAQQuestion, deleteFAQQuestion, getAllFAQQuestions, getFAQQuestionById, getFAQQuestionsByCategory, updateFAQQuestion } from '../controller/faqQuestion.controller.js';
+import { addRecentlyView, getRecentlyView } from '../controller/recentlyView.controller.js';
 
 
 const indexRouter = express.Router();
@@ -82,6 +86,9 @@ indexRouter.get("/getProductBySubCategory/:subCategoryId", getProductBySubCatego
 indexRouter.get("/getCategoryHierarchy", getCategoryHierarchy);
 indexRouter.get("/getProductsByBrand/:brandId", getProductsByBrand);
 indexRouter.get("/getProductAll", getProductAll);
+indexRouter.get("/getSimilarProducts/:productId", getSimilarProducts);
+indexRouter.get("/getMostWishlistedProducts", getMostWishlistedProducts);
+
 
 // Product
 indexRouter.post("/createProductVariant", sellerAuth, upload.fields([{ name: "images", maxCount: 1 }]), createProductVariant);
@@ -177,7 +184,7 @@ indexRouter.post('/dislikeReview/:reviewId', UserAuth, dislikeReview);
 
 //career  routes beginning
 
-// Admin jobs handle 
+// Admin jobs handle +
 indexRouter.get("/jobs/admin", UserAuth, isAdmin, adminJobsController);
 indexRouter.post("/create/job", UserAuth, isAdmin, createJobController);
 indexRouter.patch("/update/job/:jobId", UserAuth, isAdmin, updateJobController);
@@ -190,6 +197,23 @@ indexRouter.post("/apply/job/:jobId", UserAuth, upload.single("resume"), applyJo
 indexRouter.get("/my/applications", UserAuth, getMyJobapplicationsController);
 indexRouter.delete("/delete/job/application/:applicationId", UserAuth, isAdmin, deleteJobApplicationController);
 
+//faqCateogry route
+indexRouter.post("/createfaqCategory", UserAuth, isAdmin, createfaqCategory);
+indexRouter.get("/getAllfaqCategory", getAllfaqCategory);
+indexRouter.get("/getfaqCategoryById/:id", getfaqCategoryById);
+indexRouter.patch("/updatefaqCategoryById/:id", UserAuth, isAdmin, updatefaqCategoryById);
+indexRouter.delete("/deletefaqCategoryById/:id", UserAuth, isAdmin, deletefaqCategoryById);
+
+//faqCateogry route
+indexRouter.post("/createFAQQuestion", UserAuth, isAdmin, createFAQQuestion);
+indexRouter.get("/getAllFAQQuestions", getAllFAQQuestions);
+indexRouter.get("/getFAQQuestionById/:id", getFAQQuestionById);
+indexRouter.patch("/updateFAQQuestion/:id", UserAuth, isAdmin, updateFAQQuestion);
+indexRouter.delete("/deleteFAQQuestion/:id", UserAuth, isAdmin, deleteFAQQuestion);
+indexRouter.get("/getFAQQuestionsByCategory/:categoryId", getFAQQuestionsByCategory);
+
+indexRouter.post("/addRecentlyView/:productId",UserAuth, addRecentlyView);
+indexRouter.get("/getRecentlyView", UserAuth,getRecentlyView);
 
 const s3Client = new S3Client({
     region: process.env.S3_REGION,

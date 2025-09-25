@@ -8,6 +8,8 @@ import ProductVariant from "../model/productvarient.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
 import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import brandModel from "../model/brand.model.js";
+import productModel from "../model/product.model.js";
+import Wishlist from '../model/wishlist.model.js';
 
 // Assign badges: NEW, TRENDING, TOP RATED
 export const assignBadges = async () => {
@@ -588,5 +590,135 @@ export const getProductAll = async (req, res) => {
             message: "Server Error",
             error: error.message,
         });
+    }
+};
+
+export const getSimilarProducts = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const { limit = 12, fields } = req.query;
+
+        // ✅ Validate productId
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return sendBadRequestResponse(res, "Invalid product ID!");
+        }
+
+        // ✅ Build dynamic select string
+        let selectFields = "";
+        if (fields) {
+            const parts = fields.split(",");
+            parts.forEach(f => {
+                if (f.startsWith("+")) {
+                    selectFields += " " + f.substring(1); // add field
+                } else if (f.startsWith("-")) {
+                    selectFields += " -" + f.substring(1); // remove field
+                }
+            });
+        }
+
+        // ✅ Get current product
+        const currentProduct = await productModel.findById(productId)
+            .select(selectFields || "") // 🔥 dynamic select
+            .populate("brand", "brandName brandImage")
+            .populate("category", "categoryName")
+            .populate("subCategory", "subCategoryName")
+            .populate("mainCategory", "mainCategoryName");
+
+        if (!currentProduct) {
+            return sendNotFoundResponse(res, "Product not found!");
+        }
+
+        // ✅ Get similar products (same subCategory but exclude current one)
+        let similarProducts = await productModel.find({
+            isActive: true,
+            subCategory: currentProduct.subCategory?._id,
+            _id: { $ne: currentProduct._id }
+        })
+            .select(selectFields || "") // 🔥 dynamic select
+            .populate("brand", "brandName brandImage")
+            .populate("mainCategory", "mainCategoryName")
+            .populate("category", "categoryName")
+            .populate("subCategory", "subCategoryName")
+            .sort({ "rating.average": -1, createdAt: -1 })
+            .limit(parseInt(limit));
+
+        // ✅ Attach variants & price (NO filter remove for stock)
+        const productsWithVariants = await Promise.all(
+            similarProducts.map(async (product) => {
+                const variants = await ProductVariant.find({
+                    productId: product._id
+                })
+                    .sort({ "price.original": 1 })
+                    .limit(1);
+
+                return {
+                    ...product.toObject(),
+                    variants,
+                    minPrice: variants.length > 0 ? variants[0].price.original : 0,
+                    hasStock: variants.length > 0 && variants[0].stock > 0
+                };
+            })
+        );
+
+        // ✅ Final Response
+        return sendSuccessResponse(res, "Similar products fetched successfully!", {
+            currentProduct: {
+                ...currentProduct.toObject(),
+                strategy: "Same SubCategory"
+            },
+            similarProducts: productsWithVariants,
+            totalSimilar: productsWithVariants.length
+        });
+
+    } catch (error) {
+        console.error("Get Similar Products Error:", error);
+        return ThrowError(res, 500, "Server error while fetching similar products");
+    }
+};
+
+export const getMostWishlistedProducts = async (req, res) => {
+    try {
+        // Aggregate to get products with highest wishlist count
+        const mostWishlisted = await Wishlist.aggregate([
+            {
+                $group: {
+                    _id: '$productId',
+                    wishlistCount: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { wishlistCount: -1 }
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'productDetails'
+                }
+            },
+            {
+                $unwind: '$productDetails'
+            },
+            {
+                $project: {
+                    _id: '$productDetails._id',
+                    name: '$productDetails.name',
+                    price: '$productDetails.price',
+                    salePrice: '$productDetails.salePrice',
+                    images: '$productDetails.images',
+                    store: '$productDetails.store',
+                    rating: '$productDetails.rating',
+                    wishlistCount: 1
+                }
+            }
+        ]);
+
+        return sendSuccessResponse(res, "Most wishlisted products fetched successfully", {
+            data: mostWishlisted
+        });
+
+    } catch (error) {
+        return ThrowError(res, 500, error.message);
     }
 };
