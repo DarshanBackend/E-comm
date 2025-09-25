@@ -16,6 +16,9 @@ import { createBrand, deleteBrand, getAllBrand, getBrandById, getBrandByMainCate
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controller/wishlist.controller.js';
 import { createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
 import { cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
+import { addProductBannerController, deleteProductBannerController, getProductBannerController, updateProductBannerController } from '../controller/product.banner.controller.js';
+import { adminJobsController, createJobController, deleteJobController, updateJobController } from '../controller/jobs.controller.js';
+import { applyJobController, currentJobController, deleteJobApplicationController, getCurrentJobByIdController, getMyJobapplicationsController } from '../controller/job.application.controller.js';
 
 
 const indexRouter = express.Router();
@@ -87,6 +90,12 @@ indexRouter.patch("/updateProductVariant/:variantId", sellerAuth, upload.fields(
 indexRouter.delete("/deleteProductVariant/:variantId", sellerAuth, deleteProductVariant);
 indexRouter.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
+//product.banner.routes.js
+indexRouter.post("/seller/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), addProductBannerController);
+indexRouter.get("/seller/product/banner/:productId", sellerAuth, getProductBannerController);
+indexRouter.put("/seller/update/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), updateProductBannerController);
+indexRouter.delete("/seller/delete/product/banner/:productId", sellerAuth, deleteProductBannerController);
+
 // Coupon
 indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
 indexRouter.get("/getAllCoupon", UserAuth, getAllCoupon);
@@ -108,7 +117,6 @@ indexRouter.post("/seller/bank/insert", sellerAuth, sellerBankInfoSetController)
 indexRouter.post("/seller/pickup/address", sellerAuth, sellerPickUpAddressSetController)
 //seller agreement accept or not
 indexRouter.post('/seller/agreement', sellerAuth, trueSellerAgreementController);
-
 
 //profile.route.js
 indexRouter.get("/user/profile", UserAuth, getProfileController);
@@ -157,6 +165,21 @@ indexRouter.get("/seller/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
+
+//career  routes beginning
+
+// Admin jobs handle 
+indexRouter.get("/jobs/admin", UserAuth, isAdmin, adminJobsController);
+indexRouter.post("/create/job", UserAuth, isAdmin, createJobController);
+indexRouter.patch("/update/job/:jobId", UserAuth, isAdmin, updateJobController);
+indexRouter.delete("/delete/job/:jobId", UserAuth, isAdmin, deleteJobController);
+
+//job application route
+indexRouter.get("/current/jobs", UserAuth, currentJobController);
+indexRouter.get("/current/job/:jobId", UserAuth, getCurrentJobByIdController);
+indexRouter.post("/apply/job/:jobId", UserAuth, upload.single("resume"), applyJobController);
+indexRouter.get("/my/applications", UserAuth, getMyJobapplicationsController);
+indexRouter.delete("/delete/job/application/:applicationId", UserAuth, isAdmin, deleteJobApplicationController);
 
 
 const s3Client = new S3Client({

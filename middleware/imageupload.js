@@ -51,3 +51,36 @@ export const uploadFile = async (file) => {
         key
     };
 };
+
+export const uploadPDF = async (file, folder = "uploads") => {
+    if (!file) throw new Error("No file provided");
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext !== ".pdf") {
+        throw new Error("Only PDF files are allowed");
+    }
+
+    // Clean file name: replace spaces with underscores
+    const cleanName = file.originalname.replace(/\s+/g, "_");
+
+    // Use timestamp + cleaned name for uniqueness
+    const timestamp = Date.now();
+    const fileName = `${timestamp}-${cleanName}`;
+    const key = `${folder}/${fileName}`;
+
+    // Upload PDF to S3
+    await s3.send(
+        new PutObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: key,
+            Body: file.buffer,
+            ContentType: "application/pdf",
+        })
+    );
+
+    return {
+        url: `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.S3_REGION}.amazonaws.com/${key}`,
+        key,
+    };
+};
+

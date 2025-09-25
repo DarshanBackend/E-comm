@@ -50,8 +50,8 @@ const productSchema = new mongoose.Schema({
     },
     faqs: [{ type: String }]
   },
-
   isActive: { type: Boolean, default: true }
+
 }, { timestamps: true });
 
 export default mongoose.model("Product", productSchema);
