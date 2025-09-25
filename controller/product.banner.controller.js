@@ -1,6 +1,8 @@
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { uploadFile } from "../middleware/imageupload.js";
 import { ProductBanner } from "../model/product.banner.model.js";
 import productModel from "../model/product.model.js";
+import { s3 } from "../utils/aws.config.js";
 
 export const addProductBannerController = async (req, res) => {
     try {
@@ -114,22 +116,23 @@ export const deleteProductBannerController = async (req, res) => {
         // Delete images from S3
         if (banner.bannerImages && banner.bannerImages.length > 0) {
             for (const img of banner.bannerImages) {
-                const key = img.split("/").pop();
+                const key = img.split(".amazonaws.com/").pop();
                 try {
                     await s3.send(
                         new DeleteObjectCommand({
                             Bucket: process.env.S3_BUCKET_NAME,
-                            Key: `uploads/${key}`,
+                            Key: `${key}`,
                         })
                     );
+                    await ProductBanner.deleteOne({ productId });
+                    res.json({ message: "Banner deleted successfully" });
                 } catch (err) {
                     console.error("Failed to delete image from S3:", err.message);
+                    res.status(500).json({ message: "Failed to delete banner", error: err.message });
                 }
             }
         }
 
-        await ProductBanner.deleteOne({ productId });
-        res.json({ message: "Banner deleted successfully" });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Failed to delete banner", error });

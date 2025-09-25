@@ -20,6 +20,8 @@ import { createReview, deleteReview, dislikeReview, getProductReviews, likeRevie
 import { addProductBannerController, deleteProductBannerController, getProductBannerController, updateProductBannerController } from '../controller/product.banner.controller.js';
 import { applyJobController, currentJobController, deleteJobApplicationController, getCurrentJobByIdController, getMyJobapplicationsController } from '../controller/job.application.controller.js';
 import { adminJobsController, createJobController, deleteJobController, updateJobController } from '../controller/jobs.controller.js';
+import { createOfferController, deleteOfferController } from '../controller/offer.controller.js';
+import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
 
 
 const indexRouter = express.Router();
@@ -101,6 +103,10 @@ indexRouter.get("/seller/product/banner/:productId", sellerAuth, getProductBanne
 indexRouter.put("/seller/update/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), updateProductBannerController);
 indexRouter.delete("/seller/delete/product/banner/:productId", sellerAuth, deleteProductBannerController);
 
+//offer.routes.js
+indexRouter.post("/create/offer", UserAuth, isAdmin, upload.single("offerImage"), createOfferController);
+indexRouter.delete("/delete/offer/:offerId", UserAuth, isAdmin, deleteOfferController)
+
 // Coupon
 indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
 indexRouter.get("/getAllCoupon", UserAuth, getAllCoupon);
@@ -170,6 +176,14 @@ indexRouter.get("/seller/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
+
+//payment.routes.js
+indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);
+indexRouter.get("/my/payments", UserAuth, myPaymentController);
+indexRouter.get("/all/payments", sellerAuth, getSellerPaymentsController);
+indexRouter.get("/download/invoice/:paymentId", UserAuth, downloadInvoiceController);
+indexRouter.patch("/payment/status/:paymentId", sellerAuth, paymentStatusChangeController);
+
 
 //reviw.model.js
 indexRouter.post('/createReview', UserAuth, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]), createReview);
