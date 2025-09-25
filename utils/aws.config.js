@@ -16,6 +16,27 @@ export const publicUrlForKey = (key) => {
     const region = process.env.S3_REGION || 'us-east-1';
     return `https://${bucket}.s3.${region}.amazonaws.com/${encodeURI(key)}`;
 };
+export const deleteS3File = async (key) => {
+    try {
+        if (!key) {
+            throw new Error("S3 key is required to delete a file");
+        }
+
+        const command = new DeleteObjectCommand({
+            Bucket: process.env.S3_BUCKET_NAME,
+            Key: key,
+        });
+
+        await s3.send(command);
+
+        console.log(`✅ File deleted from S3: ${key}`);
+        return true;
+    } catch (error) {
+        console.error("❌ Failed to delete file from S3:", error.message);
+        return false;
+    }
+};
+
 
 // Delete uploaded object if we need to roll back after a validation error
 export const cleanupUploadedIfAny = async (file) => {

@@ -1,91 +1,111 @@
 import mongoose from "mongoose";
-import { nanoid } from "nanoid"; // lightweight package for unique IDs
+import { nanoid } from "nanoid";
 
-const orderSchema = new mongoose.Schema({
-  orderId: {
-    type: String,
-    unique: true,
-    required: false,
-  },
-
-  userId: {
-    type: mongoose.Types.ObjectId,
-    ref: "user",
-    required: [true, "userId is required"],
-  },
-  sellerId: {
-    type: mongoose.Types.ObjectId,
-    ref: "seller",
-    required: [true, "sellerId is required"],
-  },
-
-  products: [
-    {
-      productId: { type: mongoose.Types.ObjectId, ref: "Product" },
-      variantId: { type: mongoose.Types.ObjectId, ref: "ProductVariant" },
-      quantity: { type: Number, required: true, default: 1 },
-      price: { type: Number, required: true },
-      sku: { type: String, required: true },
-    }
-  ],
-
-  totalAmount: { type: Number, default: 0 },
-  couponCode: { type: String, default: null },
-  isCouponApplied: { type: Boolean, default: false },
-
-  deliveryAddress: {
-    type: mongoose.Types.ObjectId,
-    ref: "user.selectedBillingAddress",
-    default: null
-  },
-
-  orderStatus: {
-    type: String,
-    enum: [
-      "Order Confirmed",
-      "Processing",
-      "Shipped Expected",
-      "Out For Delivery",
-      "Delivered",
-      "Cancelled"
-    ],
-    default: "Order Confirmed",
-  },
-
-  timeline: {
-    confirmedAt: { type: Date, default: Date.now },
-    processingAt: { type: Date },
-    shippedAt: { type: Date },
-    outForDeliveryAt: { type: Date },
-    deliveredAt: { type: Date },
-    cancelledAt: { type: Date },
-  },
-
-  deliveryExpected: { type: Date },
-
-  payment: {
-    method: {
+const orderSchema = new mongoose.Schema(
+  {
+    orderId: {
       type: String,
-      enum: ["COD", "Card", "UPI", "PayPal", "Bank"],
+      unique: true,
+      index: true, // faster queries
+    },
+
+    userId: {
+      type: mongoose.Types.ObjectId,
+      ref: "user",
       required: true,
     },
-    status: {
+
+    sellerId: {
+      type: mongoose.Types.ObjectId,
+      ref: "seller",
+      required: true,
+    },
+
+    products: [
+      {
+        productId: { type: mongoose.Types.ObjectId, ref: "Product", required: true },
+        variantId: { type: mongoose.Types.ObjectId, ref: "ProductVariant" },
+        sku: { type: String, required: true },
+        name: { type: String }, // snapshot name at purchase
+        quantity: { type: Number, required: true, min: 1 },
+        price: { type: String, required: true }, // unit price at purchase
+        subtotal: { type: Number }, // quantity * price
+      },
+    ],
+
+    billingAmount: { type: Number, required: true, default: 0 }, // before discount
+    discountAmount: { type: Number, default: 0 },
+    totalAmount: { type: String, required: true, default: 0 }, // after discount
+    couponCode: { type: String, default: null },
+    isCouponApplied: { type: Boolean, default: false },
+
+    deliveryAddress: {
+      type: mongoose.Types.ObjectId,
+      ref: "UserAddress",
+      required: true,
+    },
+
+    orderStatus: {
       type: String,
-      enum: ["Pending", "Paid", "Failed", "Refunded"],
+      enum: [
+        "Pending",
+        "Order Confirmed",
+        "Processing",
+        "Shipped",
+        "Out For Delivery",
+        "Delivered",
+        "Cancelled",
+        "Returned",
+      ],
       default: "Pending",
     },
-    transactionId: { type: String },
-  },
-}, { timestamps: true });
 
+    timeline: {
+      confirmedAt: { type: Date },
+      processingAt: { type: Date },
+      shippedAt: { type: Date },
+      outForDeliveryAt: { type: Date },
+      deliveredAt: { type: Date },
+      cancelledAt: { type: Date },
+      returnedAt: { type: Date },
+    },
+
+    deliveryExpected: { type: Date },
+    deliveredAt: { type: Date }, // actual delivered date
+
+    payment: {
+      method: {
+        type: String,
+        enum: ["COD", "Card", "UPI", "PayPal", "Bank"],
+        required: true,
+      },
+      status: {
+        type: String,
+        enum: ["Pending", "Paid", "Failed", "Refunded"],
+        default: "Pending",
+      },
+      transactionId: { type: String },
+    },
+  },
+  { timestamps: true }
+);
 
 orderSchema.pre("save", function (next) {
   if (this.isNew && !this.orderId) {
-    // Generate unique orderId → example: ORD-20250923-5fGh7K
     const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     this.orderId = `ORD-${datePart}-${nanoid(6)}`;
   }
 
+  // Calculate subtotal per product
+  this.products.forEach((item) => {
+    item.subtotal = item.quantity * item.price;
+  });
+
+  // Auto-calc billing & total
+  this.billingAmount = this.products.reduce((sum, p) => sum + p.subtotal, 0);
+  this.totalAmount = this.billingAmount - this.discountAmount;
+
+  // Update timeline based on status
   if (this.isModified("orderStatus")) {
     const now = new Date();
     switch (this.orderStatus) {
@@ -95,7 +115,7 @@ orderSchema.pre("save", function (next) {
       case "Processing":
         this.timeline.processingAt = now;
         break;
-      case "Shipped Expected":
+      case "Shipped":
         this.timeline.shippedAt = now;
         break;
       case "Out For Delivery":
@@ -103,12 +123,17 @@ orderSchema.pre("save", function (next) {
         break;
       case "Delivered":
         this.timeline.deliveredAt = now;
+        this.deliveredAt = now;
         break;
       case "Cancelled":
         this.timeline.cancelledAt = now;
         break;
+      case "Returned":
+        this.timeline.returnedAt = now;
+        break;
     }
   }
+
   next();
 });
 

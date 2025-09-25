@@ -7,130 +7,226 @@ import { nanoid } from "nanoid";
 import orderModel from "../model/order.model.js";
 import UserModel from "../model/user.model.js";
 import sellerModel from "../model/seller.model.js";
+import couponModel from "../model/coupon.model.js";
+
+const roundToTwo = (num) => Math.round(num * 100) / 100;
 
 export const newOrderController = async (req, res) => {
+    const session = await mongoose.startSession();
+
     try {
+        session.startTransaction();
+
         const { id: userId } = req?.user;
-        console.log("User ID:", userId);
         const {
             productId,
             variantId,
             quantity,
-            price,
+            couponCode,
+            isCouponApplied,
             sku,
             billingAddressId,
             method,
-        } = req?.body;
+        } = req.body;
 
-        if (!productId || !variantId || !quantity || !price || !sku) {
+        // --- Validations ---
+        if (!productId || !variantId || !quantity || !sku) {
             return sendErrorResponse(res, 400, "Missing required product details");
         }
-        if (!billingAddressId && !mongoose.Types.ObjectId.isValid(billingAddressId)) {
-            return sendErrorResponse(res, 400, "Billing addressID is required");
+        if (!billingAddressId || !mongoose.Types.ObjectId.isValid(billingAddressId)) {
+            return sendErrorResponse(res, 400, "Valid billing address ID is required");
         }
-        const isBillingExist = await UserModel.findOne({ _id: userId });
-        if (!isBillingExist) {
-            return sendErrorResponse(res, 404, "Billing address not found");
+        if (!["COD", "Card", "UPI", "PayPal", "Bank"].includes(method)) {
+            return sendErrorResponse(res, 400, "Invalid payment method");
         }
-
-        if (!method) {
-            return sendErrorResponse(res, 400, "Payment method is required");
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return sendErrorResponse(res, 400, "Invalid user ID");
         }
 
-        const product = await Product.findById(productId);
-        if (!product) {
-            return sendErrorResponse(res, 404, "Product not found");
+        if (!Number.isInteger(quantity) || quantity <= 0) {
+            return sendErrorResponse(res, 400, "Quantity must be a positive integer");
         }
 
-        const variant = await ProductVariant.findById(variantId);
-        if (!variant) {
-            return sendErrorResponse(res, 404, "Product variant not found");
+        // --- Fetch DB records ---
+        const user = await UserModel.findById(userId).session(session);
+        if (!user) return sendErrorResponse(res, 404, "User not found");
+
+        const billingAddress = user.billingaddress.id(billingAddressId);
+        if (!billingAddress) return sendErrorResponse(res, 404, "Billing address not found");
+
+        const product = await Product.findById(productId).session(session);
+        if (!product) return sendErrorResponse(res, 404, "Product not found");
+
+        const variant = await ProductVariant.findById(variantId).session(session);
+        if (!variant) return sendErrorResponse(res, 404, "Product variant not found");
+
+        if (variant.productId.toString() !== productId) {
+            return sendErrorResponse(res, 400, "Variant does not belong to product");
+        }
+        if (variant.stock < quantity) {
+            return sendErrorResponse(res, 400, `Insufficient stock. Available: ${variant.stock}`);
+        }
+        if (variant.sku !== sku) {
+            return sendErrorResponse(res, 400, "SKU does not match variant");
         }
 
-        const sellerId = product.sellerId;
+        // --- Prepare product object ---
+        const orderProduct = {
+            productId,
+            variantId,
+            sku: variant.sku,
+            name: product.name,
+            quantity,
+            price: variant.price.original,
+        };
+        // Convert variant.price (string in schema) to number for calculations
+        const unitPrice = Number(variant.price.original);
+        if (isNaN(unitPrice)) {
+            return sendErrorResponse(res, 400, "Invalid variant price");
+        }
+        // --- Coupon logic ---
+        let discountAmount = 0;
+        const productSubtotal = roundToTwo(unitPrice * quantity);
+
+        if (isCouponApplied && couponCode) {
+            const coupon = await couponModel.findOne({ code: couponCode.toUpperCase() }).session(session);
+            if (!coupon) return sendErrorResponse(res, 400, "Invalid coupon code");
+            if (!coupon.isActive) return sendErrorResponse(res, 400, "Coupon is inactive");
+            if (coupon.expiryDate < new Date()) return sendErrorResponse(res, 400, "Coupon expired");
+            if (coupon.minOrderValue > productSubtotal) {
+                return sendErrorResponse(res, 400, `Minimum order value is ₹${coupon.minOrderValue}`);
+            }
+            if (coupon.sellerId && coupon.sellerId.toString() !== product.sellerId.toString()) {
+                return sendErrorResponse(res, 400, "Coupon not valid for this seller");
+            }
+
+            const discountValue = Number(coupon.discountValue || 0);
+            if (discountValue > 0) {
+                if (coupon.discountType === "percentage") {
+                    discountAmount = roundToTwo((discountValue / 100) * productSubtotal);
+                    if (coupon.maxDiscount && discountAmount > coupon.maxDiscount) {
+                        discountAmount = Number(coupon.maxDiscount);
+                    }
+                } else if (coupon.discountType === "fixed") {
+                    discountAmount = Math.min(discountValue, productSubtotal);
+                }
+            }
+        }
 
 
-        let totalAmount = quantity * price;
+        // --- Delivery ---
+        const deliveryExpected = new Date();
+        deliveryExpected.setDate(deliveryExpected.getDate() + 7);
 
-        const datePart = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-        const orderId = `ORD-${datePart}-${nanoid(6)}`;
-
-
-        const newOrder = await Order.create({
-            orderId,
+        // --- Create Order ---
+        const newOrder = new Order({
             userId,
-            sellerId,
-            products: [
-                {
-                    productId,
-                    variantId,
-                    quantity,
-                    price,
-                    sku,
-                },
-            ],
-            totalAmount,
-            couponCode: null,
-            isCouponApplied: false,
-
+            sellerId: product.sellerId,
+            products: [orderProduct],
+            discountAmount,
+            couponCode: couponCode,
+            isCouponApplied: true,
             deliveryAddress: billingAddressId,
-
+            deliveryExpected,
             payment: {
                 method,
                 status: method === "COD" ? "Pending" : "Paid",
+                transactionId: method !== "COD" ? `TXN-${Date.now()}-${nanoid(8)}` : null,
             },
         });
-        newOrder.save();
 
-        const seller = await sellerModel.findByIdAndUpdate({ _id: sellerId }, {
-            $push: {
-                orders: newOrder._id
-            }
-        });
+        const savedOrder = await newOrder.save({ session });
 
-        return sendSuccessResponse(res, 201, "Order placed successfully", newOrder);
+        // --- Update stock and seller orders ---
+        await ProductVariant.findByIdAndUpdate(
+            variantId,
+            { $inc: { stock: -quantity } },
+            { session }
+        );
+
+        await sellerModel.findByIdAndUpdate(
+            product.sellerId,
+            { $push: { orders: savedOrder._id } },
+            { session }
+        );
+
+        await session.commitTransaction();
+
+        return sendSuccessResponse(res, 201, "Order placed successfully", savedOrder);
 
     } catch (error) {
-        console.log(error);
-        return sendErrorResponse(res, 500, "Error during new order placement", error.message);
+        await session.abortTransaction();
+        console.error("Order Error:", error);
+
+        if (error.name === "ValidationError") {
+            return sendErrorResponse(res, 400, "Validation Error", error.message);
+        }
+        if (error.code === 11000) {
+            return sendErrorResponse(res, 400, "Duplicate entry");
+        }
+        return sendErrorResponse(res, 500, "Error placing order", error.message);
+    } finally {
+        session.endSession();
     }
 };
 
 export const myOrderController = async (req, res) => {
     try {
-        const { id } = req?.user;
-        if (!id && !mongoose.Types.ObjectId.isValid(id)) {
-            return sendErrorResponse(res, 400, "UserID is required");
+        const { id: userId } = req?.user;
+
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            return sendErrorResponse(res, 400, "Valid UserID is required");
         }
 
-        const orders = await orderModel.find().populate("userId");
-        const populatedOrders = orders.map(order => {
-            const user = order.userId;
-            const deliveryAddress = user.billingaddress.find(addr =>
-                addr._id.toString() === order.deliveryAddress.toString()
-            );
-
-            return {
-                ...order.toObject(),
-                deliveryAddress
-            };
-        });
-
+        // Fetch orders for this user and populate user details
+        const orders = await orderModel.find({ userId }).populate("userId").sort({ createdAt: -1 });
 
         if (!orders || orders.length === 0) {
             return sendErrorResponse(res, 404, "No orders found for this user");
         }
-        return sendSuccessResponse(res, "User orders fetched successfully", orders);
+
+        // Map orders to include the delivery address object
+        const formattedOrders = orders.map((order) => {
+            const user = order.userId;
+            const deliveryAddress = user?.billingaddress?.find(
+                (addr) => addr._id.toString() === order.deliveryAddress.toString()
+            );
+
+            return {
+                _id: order._id,
+                orderId: order.orderId,
+                products: order.products,
+                billingAmount: order.billingAmount,
+                discountAmount: order.discountAmount,
+                totalAmount: order.totalAmount,
+                couponCode: order.couponCode,
+                isCouponApplied: order.isCouponApplied,
+                orderStatus: order.orderStatus,
+                deliveryExpected: order.deliveryExpected,
+                createdAt: order.createdAt,
+                payment: order.payment,
+                deliveryAddress: deliveryAddress || null,
+            };
+        });
+
+        return sendSuccessResponse(res, "User orders fetched successfully", {
+            orders: formattedOrders,
+        });
 
     } catch (error) {
-        console.log(error);
-        return sendErrorResponse(res, 500, "Error during fetching user orders", error.message);
+        console.error("Error fetching user orders:", error);
+        return sendErrorResponse(res, 500, "Error fetching user orders", error.message);
     }
-}
+};
+
 
 export const getAllOrders = async (req, res) => {
     try {
-
+        const orders = await orderModel.find().populate("userId").populate("sellerId").sort({ createdAt: -1 });
+        if (!orders || orders.length === 0) {
+            return sendErrorResponse(res, 404, "No orders found");
+        }
+        return sendSuccessResponse(res, "All orders fetched successfully", orders);
     } catch (err) {
         console.log(err);
         return sendErrorResponse(res, 500, "Error during getAllOrders", err);
