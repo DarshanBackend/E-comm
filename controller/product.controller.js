@@ -13,6 +13,7 @@ import Wishlist from '../model/wishlist.model.js';
 import categoryModel from "../model/category.model.js";
 import productvarientModel from "../model/productvarient.model.js";
 import paymentModel from "../model/payment.model.js";
+import OrderModel from "../model/order.model.js";
 
 // Assign badges: NEW, TRENDING, TOP RATED
 export const assignBadges = async () => {
@@ -78,7 +79,6 @@ export const assignBadges = async () => {
         console.error("Error assigning badges:", err.message);
     }
 };
-
 
 export const createProduct = async (req, res) => {
     try {
@@ -617,3 +617,297 @@ export const discoverProductController = async (req, res) => {
     }
 }
 
+export const getSimilarProducts = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const { limit = 12, fields } = req.query;
+
+        // ✅ Validate productId
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return sendBadRequestResponse(res, "Invalid product ID!");
+        }
+
+        // ✅ Build dynamic select string
+        let selectFields = "";
+        if (fields) {
+            const parts = fields.split(",");
+            parts.forEach(f => {
+                if (f.startsWith("+")) {
+                    selectFields += " " + f.substring(1); // add field
+                } else if (f.startsWith("-")) {
+                    selectFields += " -" + f.substring(1); // remove field
+                }
+            });
+        }
+
+        // ✅ Get current product
+        const currentProduct = await productModel.findById(productId)
+            .select(selectFields || "") // 🔥 dynamic select
+            .populate("brand", "brandName brandImage")
+            .populate("category", "categoryName")
+            .populate("subCategory", "subCategoryName")
+            .populate("mainCategory", "mainCategoryName");
+
+        if (!currentProduct) {
+            return sendNotFoundResponse(res, "Product not found!");
+        }
+
+        // ✅ Get similar products (same subCategory but exclude current one)
+        let similarProducts = await productModel.find({
+            isActive: true,
+            subCategory: currentProduct.subCategory?._id,
+            _id: { $ne: currentProduct._id }
+        })
+            .select(selectFields || "") // 🔥 dynamic select
+            .populate("brand", "brandName brandImage")
+            .populate("mainCategory", "mainCategoryName")
+            .populate("category", "categoryName")
+            .populate("subCategory", "subCategoryName")
+            .sort({ "rating.average": -1, createdAt: -1 })
+            .limit(parseInt(limit));
+
+        // ✅ Attach variants & price (NO filter remove for stock)
+        const productsWithVariants = await Promise.all(
+            similarProducts.map(async (product) => {
+                const variants = await ProductVariant.find({
+                    productId: product._id
+                })
+                    .sort({ "price.original": 1 })
+                    .limit(1);
+
+                return {
+                    ...product.toObject(),
+                    variants,
+                    minPrice: variants.length > 0 ? variants[0].price.original : 0,
+                    hasStock: variants.length > 0 && variants[0].stock > 0
+                };
+            })
+        );
+
+        // ✅ Final Response
+        return sendSuccessResponse(res, "Similar products fetched successfully!", {
+            currentProduct: {
+                ...currentProduct.toObject(),
+                strategy: "Same SubCategory"
+            },
+            similarProducts: productsWithVariants,
+            totalSimilar: productsWithVariants.length
+        });
+
+    } catch (error) {
+        console.error("Get Similar Products Error:", error);
+        return ThrowError(res, 500, "Server error while fetching similar products");
+    }
+};
+
+export const getMostWishlistedProducts = async (req, res) => {
+    try {
+        // First, get wishlist counts
+        const wishlistCounts = await Wishlist.aggregate([
+            {
+                $unwind: '$items'
+            },
+            {
+                $group: {
+                    _id: '$items.productId',
+                    wishlistCount: { $sum: 1 }
+                }
+            },
+            {
+                $sort: { wishlistCount: -1 }
+            },
+            {
+                $limit: 50
+            }
+        ]);
+
+        // Extract product IDs
+        const productIds = wishlistCounts.map(item => item._id);
+
+        // Get product details
+        const products = await Product.find({
+            _id: { $in: productIds },
+            isActive: true
+        }).populate('brand mainCategory category subCategory');
+
+        // Combine wishlist counts with product details
+        const result = products.map(product => {
+            const wishlistData = wishlistCounts.find(w => w._id.toString() === product._id.toString());
+            return {
+                ...product.toObject(),
+                wishlistCount: wishlistData ? wishlistData.wishlistCount : 0
+            };
+        });
+
+        // Sort by wishlist count (since find doesn't maintain aggregation order)
+        result.sort((a, b) => b.wishlistCount - a.wishlistCount);
+
+        return sendSuccessResponse(res, "Most wishlisted products fetched successfully", {
+            data: result
+        });
+
+    } catch (error) {
+        return ThrowError(res, 500, error.message);
+    }
+};
+
+export const getTrendingProducts = async (req, res) => {
+    try {
+        const pipeline = [
+            {
+                $lookup: {
+                    from: "payments",
+                    localField: "_id",
+                    foreignField: "orderId",
+                    as: "payment"
+                }
+            },
+            { $unwind: "$payment" },
+            { $match: { "payment.paymentStatus": "completed" } },
+
+            { $unwind: "$products" },
+
+            {
+                $group: {
+                    _id: "$products.productId",
+                    totalQuantity: { $sum: "$products.quantity" },
+                    orderCount: { $sum: 1 }
+                }
+            },
+
+            { $sort: { totalQuantity: -1 } },
+
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "product"
+                }
+            },
+            { $unwind: "$product" },
+
+            {
+                $lookup: {
+                    from: "productvariants",
+                    localField: "product._id",
+                    foreignField: "productId",
+                    as: "variants"
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "maincategories",
+                    localField: "product.mainCategory",
+                    foreignField: "_id",
+                    as: "mainCategory"
+                }
+            },
+            { $unwind: { path: "$mainCategory", preserveNullAndEmptyArrays: true } },
+
+            {
+                $lookup: {
+                    from: "categories",
+                    localField: "product.category",
+                    foreignField: "_id",
+                    as: "category"
+                }
+            },
+            { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+
+            {
+                $lookup: {
+                    from: "subcategories",
+                    localField: "product.subCategory",
+                    foreignField: "_id",
+                    as: "subCategory"
+                }
+            },
+            { $unwind: { path: "$subCategory", preserveNullAndEmptyArrays: true } },
+
+            {
+                $lookup: {
+                    from: "brands",
+                    localField: "product.brand",
+                    foreignField: "_id",
+                    as: "brand"
+                }
+            },
+            { $unwind: { path: "$brand", preserveNullAndEmptyArrays: true } },
+
+            {
+                $project: {
+                    _id: 0,
+                    productId: "$_id",
+                    totalQuantity: 1,
+                    orderCount: 1,
+                    product: {
+                        _id: "$product._id",
+                        title: "$product.title",
+                        description: "$product.description",
+                        badge: "$product.badge",
+                        brand: {
+                            $cond: [
+                                { $ifNull: ["$brand._id", false] },
+                                { _id: "$brand._id", name: "$brand.brandName" },
+                                null
+                            ]
+                        }
+                    },
+                    mainCategory: {
+                        $cond: [
+                            { $ifNull: ["$mainCategory._id", false] },
+                            { _id: "$mainCategory._id", name: "$mainCategory.mainCategoryName" },
+                            null
+                        ]
+                    },
+                    category: {
+                        $cond: [
+                            { $ifNull: ["$category._id", false] },
+                            { _id: "$category._id", name: "$category.categoryName" },
+                            null
+                        ]
+                    },
+                    subCategory: {
+                        $cond: [
+                            { $ifNull: ["$subCategory._id", false] },
+                            { _id: "$subCategory._id", name: "$subCategory.subCategoryName" },
+                            null
+                        ]
+                    },
+                    variants: {
+                        $map: {
+                            input: "$variants",
+                            as: "variant",
+                            in: {
+                                _id: "$$variant._id",
+                                sku: "$$variant.sku",
+                                images: "$$variant.images",
+                                color: "$$variant.color",
+                                size: "$$variant.size",
+                                price: "$$variant.price",
+                                stock: "$$variant.stock",
+                                weight: "$$variant.weight"
+                            }
+                        }
+                    }
+                }
+            }
+        ];
+
+        const results = await OrderModel.aggregate(pipeline);
+
+        return res.status(200).json({
+            success: true,
+            message: "Trending products fetched successfully",
+            result: results
+        });
+    } catch (error) {
+        console.error("Error fetching trending products:", error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Server error"
+        });
+    }
+};
