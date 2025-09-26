@@ -5,6 +5,7 @@ import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, up
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getFilterProductsController, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
 import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getMostWishlistedProducts, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, getSimilarProducts, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -20,9 +21,8 @@ import { createReview, deleteReview, dislikeReview, getProductReviews, likeRevie
 import { addProductBannerController, deleteProductBannerController, getProductBannerController, updateProductBannerController } from '../controller/product.banner.controller.js';
 import { applyJobController, currentJobController, deleteJobApplicationController, getCurrentJobByIdController, getMyJobapplicationsController } from '../controller/job.application.controller.js';
 import { adminJobsController, createJobController, deleteJobController, updateJobController } from '../controller/jobs.controller.js';
-import { createfaqCategory, deletefaqCategoryById, getAllfaqCategory, getfaqCategoryById, updatefaqCategoryById } from '../controller/faqCategory.controller.js';
-import { createFAQQuestion, deleteFAQQuestion, getAllFAQQuestions, getFAQQuestionById, getFAQQuestionsByCategory, updateFAQQuestion } from '../controller/faqQuestion.controller.js';
-import { addRecentlyView, getRecentlyView } from '../controller/recentlyView.controller.js';
+import { createOfferController, deleteOfferController } from '../controller/offer.controller.js';
+import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
 
 
 const indexRouter = express.Router();
@@ -98,11 +98,18 @@ indexRouter.patch("/updateProductVariant/:variantId", sellerAuth, upload.fields(
 indexRouter.delete("/deleteProductVariant/:variantId", sellerAuth, deleteProductVariant);
 indexRouter.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
+//producy filter api
+indexRouter.get("/products", getFilterProductsController);
+
 //product.banner.routes.js
 indexRouter.post("/seller/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), addProductBannerController);
 indexRouter.get("/seller/product/banner/:productId", sellerAuth, getProductBannerController);
 indexRouter.put("/seller/update/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), updateProductBannerController);
 indexRouter.delete("/seller/delete/product/banner/:productId", sellerAuth, deleteProductBannerController);
+
+//offer.routes.js
+indexRouter.post("/create/offer", UserAuth, isAdmin, upload.single("offerImage"), createOfferController);
+indexRouter.delete("/delete/offer/:offerId", UserAuth, isAdmin, deleteOfferController)
 
 // Coupon
 indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
@@ -173,6 +180,14 @@ indexRouter.get("/seller/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
+
+//payment.routes.js
+indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);
+indexRouter.get("/my/payments", UserAuth, myPaymentController);
+indexRouter.get("/all/payments", sellerAuth, getSellerPaymentsController);
+indexRouter.get("/download/invoice/:paymentId", UserAuth, downloadInvoiceController);
+indexRouter.patch("/payment/status/:paymentId", sellerAuth, paymentStatusChangeController);
+
 
 //reviw.model.js
 indexRouter.post('/createReview', UserAuth, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]), createReview);

@@ -51,8 +51,8 @@ export const updateJobController = async (req, res) => {
 
         // Find and update in one step
         const updatedJob = await jobModel.findByIdAndUpdate(id, updates, {
-            new: true,          // return updated document
-            runValidators: true // trigger mongoose schema validation
+            new: true,         
+            runValidators: true 
         });
 
         if (!updatedJob) {

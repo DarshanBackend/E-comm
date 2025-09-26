@@ -41,7 +41,6 @@ const orderSchema = new mongoose.Schema(
 
     deliveryAddress: {
       type: mongoose.Types.ObjectId,
-      ref: "UserAddress",
       required: true,
     },
 
