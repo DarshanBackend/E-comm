@@ -679,11 +679,14 @@ export const getSimilarProducts = async (req, res) => {
 
 export const getMostWishlistedProducts = async (req, res) => {
     try {
-        // Aggregate to get products with highest wishlist count
-        const mostWishlisted = await Wishlist.aggregate([
+        // First, get wishlist counts
+        const wishlistCounts = await Wishlist.aggregate([
+            {
+                $unwind: '$items'
+            },
             {
                 $group: {
-                    _id: '$productId',
+                    _id: '$items.productId',
                     wishlistCount: { $sum: 1 }
                 }
             },
@@ -691,32 +694,33 @@ export const getMostWishlistedProducts = async (req, res) => {
                 $sort: { wishlistCount: -1 }
             },
             {
-                $lookup: {
-                    from: 'products',
-                    localField: '_id',
-                    foreignField: '_id',
-                    as: 'productDetails'
-                }
-            },
-            {
-                $unwind: '$productDetails'
-            },
-            {
-                $project: {
-                    _id: '$productDetails._id',
-                    name: '$productDetails.name',
-                    price: '$productDetails.price',
-                    salePrice: '$productDetails.salePrice',
-                    images: '$productDetails.images',
-                    store: '$productDetails.store',
-                    rating: '$productDetails.rating',
-                    wishlistCount: 1
-                }
+                $limit: 50
             }
         ]);
 
+        // Extract product IDs
+        const productIds = wishlistCounts.map(item => item._id);
+
+        // Get product details
+        const products = await Product.find({
+            _id: { $in: productIds },
+            isActive: true
+        }).populate('brand mainCategory category subCategory');
+
+        // Combine wishlist counts with product details
+        const result = products.map(product => {
+            const wishlistData = wishlistCounts.find(w => w._id.toString() === product._id.toString());
+            return {
+                ...product.toObject(),
+                wishlistCount: wishlistData ? wishlistData.wishlistCount : 0
+            };
+        });
+
+        // Sort by wishlist count (since find doesn't maintain aggregation order)
+        result.sort((a, b) => b.wishlistCount - a.wishlistCount);
+
         return sendSuccessResponse(res, "Most wishlisted products fetched successfully", {
-            data: mostWishlisted
+            data: result
         });
 
     } catch (error) {
