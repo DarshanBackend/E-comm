@@ -293,30 +293,51 @@ export const getBrandByMainCategory = async (req, res) => {
     }
 };
 
-export const brandFilterSortController = async (req, res) => {
+export const brandFilterController = async (req, res) => {
     try {
-        const { d } = req.query; // sorting direction
-
+        const { filter, search } = req.query;
         let sortOption = {};
+        let query = {};
 
-        if (d === "az") {
-            // Ascending (A → Z)
-            sortOption = { brandName: 1 };
-        } else if (d === "za") {
-            // Descending (Z → A)
-            sortOption = { brandName: -1 };
+        if (search) {
+            query.brandName = { $regex: search, $options: "i" };
+        }
+        switch (filter) {
+            case "az":
+                sortOption = { brandName: 1 }; 
+                break;
+            case "za":
+                sortOption = { brandName: -1 }; 
+                break;
+            case "new":
+                sortOption = { createdAt: -1 }; 
+                break;
+            case "trustable":
+                query.isTrustable = true;
+                break;
+            case "popularity":
+                sortOption = { popularity: -1 };
+                break;
+            case "featured":
+                query.isFeatured = true;
+
+                break;
+            default:
+                break;
         }
 
-        const brands = await brandModel.find({}).sort(sortOption);
+        // Fetch from DB
+        const brands = await brandModel.find(query).sort(sortOption);
 
         return res.status(200).json({
             success: true,
-            message: `Brands sorted ${d === "az" ? "A → Z" : d === "za" ? "Z → A" : "default"}`,
+            message: "Brands fetched successfully",
+            total: brands.length,
             data: brands,
         });
-
     } catch (error) {
         console.error(error.message);
-        return sendErrorResponse(res, 500, "Error During Sorting Filter in Brand", error);
+        return sendErrorResponse(res, 500, "Error During Sorting/Filtering in Brand", error);
     }
 };
+

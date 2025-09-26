@@ -18,7 +18,6 @@ const app = express();
 app.use(express.json()); //for json transction
 app.use(express.urlencoded({ extended: true }));
 app.use(logger("dev")); //for logging all apis and thire response in console.
-app.use(express.urlencoded({ extended: true }));
 
 //port define
 const PORT = process.env.PORT || 9000;

@@ -11,6 +11,8 @@ import brandModel from "../model/brand.model.js";
 import productModel from "../model/product.model.js";
 import Wishlist from '../model/wishlist.model.js';
 import categoryModel from "../model/category.model.js";
+import productvarientModel from "../model/productvarient.model.js";
+import paymentModel from "../model/payment.model.js";
 
 // Assign badges: NEW, TRENDING, TOP RATED
 export const assignBadges = async () => {
@@ -594,3 +596,24 @@ export const getProductAll = async (req, res) => {
         });
     }
 };
+
+export const discoverProductController = async (req, res) => {
+    try {
+        const products = await productvarientModel.find({}).sort({ createdAt: -1 }).populate({
+            path: "productId",
+            select: "productDetails brand title rating"
+        });
+        if (!products) {
+            return sendNotFoundResponse(res, "Not Product Found")
+        }
+        return sendSuccessResponse(res, "Discover Product Featched Successfully", {
+            total: products.length,
+            products: products
+        })
+
+    } catch (error) {
+        console.log(error);
+        return sendErrorResponse(res, 500, "Error whiile featching discover product ", error)
+    }
+}
+
