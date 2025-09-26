@@ -76,6 +76,7 @@ export const assignBadges = async () => {
     }
 };
 
+
 export const createProduct = async (req, res) => {
     try {
         const {
