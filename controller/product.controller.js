@@ -10,7 +10,6 @@ import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSu
 import brandModel from "../model/brand.model.js";
 import productModel from "../model/product.model.js";
 import Wishlist from '../model/wishlist.model.js';
-import productModel from "../model/product.model.js";
 import categoryModel from "../model/category.model.js";
 
 // Assign badges: NEW, TRENDING, TOP RATED
