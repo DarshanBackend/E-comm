@@ -23,6 +23,10 @@ import { applyJobController, currentJobController, deleteJobApplicationControlle
 import { adminJobsController, createJobController, deleteJobController, updateJobController } from '../controller/jobs.controller.js';
 import { createOfferController, deleteOfferController } from '../controller/offer.controller.js';
 import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
+import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
+import { createfaqCategory, deletefaqCategoryById, getAllfaqCategory, getfaqCategoryById, updatefaqCategoryById } from '../controller/faqCategory.controller.js';
+import { createFAQQuestion, deleteFAQQuestion, getAllFAQQuestions, getFAQQuestionById, getFAQQuestionsByCategory, updateFAQQuestion } from '../controller/faqQuestion.controller.js';
+import { addRecentlyView, getRecentlyView } from '../controller/recentlyView.controller.js';
 
 
 const indexRouter = express.Router();
@@ -86,8 +90,8 @@ indexRouter.get("/getProductBySubCategory/:subCategoryId", getProductBySubCatego
 indexRouter.get("/getCategoryHierarchy", getCategoryHierarchy);
 indexRouter.get("/getProductsByBrand/:brandId", getProductsByBrand);
 indexRouter.get("/getProductAll", getProductAll);
-indexRouter.get("/getSimilarProducts/:productId", getSimilarProduct);
-indexRouter.get("/getMostWishlistedProducts", getMostWishlistedProducts);
+// indexRouter.get("/getSimilarProducts/:productId", getSimilarProduct);
+// indexRouter.get("/getMostWishlistedProducts", getMostWishlistedProduct);
 
 
 // Product
@@ -98,8 +102,6 @@ indexRouter.patch("/updateProductVariant/:variantId", sellerAuth, upload.fields(
 indexRouter.delete("/deleteProductVariant/:variantId", sellerAuth, deleteProductVariant);
 indexRouter.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
-//producy filter api
-indexRouter.get("/products", getFilterProductsController);
 
 //product.banner.routes.js
 indexRouter.post("/seller/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), addProductBannerController);
@@ -213,7 +215,7 @@ indexRouter.get("/my/applications", UserAuth, getMyJobapplicationsController);
 indexRouter.delete("/delete/job/application/:applicationId", UserAuth, isAdmin, deleteJobApplicationController);
 
 //faqCateogry route
-indexRouter.post("/createfaqCategory", UserAuth, isAdmin, createfaqCatego);
+indexRouter.post("/createfaqCategory", UserAuth, isAdmin, createfaqCategory);
 indexRouter.get("/getAllfaqCategory", getAllfaqCategory);
 indexRouter.get("/getfaqCategoryById/:id", getfaqCategoryById);
 indexRouter.patch("/updatefaqCategoryById/:id", UserAuth, isAdmin, updatefaqCategoryById);
