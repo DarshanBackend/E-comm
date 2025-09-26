@@ -6,10 +6,11 @@ import CategoryModel from "../model/category.model.js";
 import SubCategoryModel from "../model/subCategory.model.js";
 import ProductVariant from "../model/productvarient.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
-import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
+import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import brandModel from "../model/brand.model.js";
 import productModel from "../model/product.model.js";
 import Wishlist from '../model/wishlist.model.js';
+import categoryModel from "../model/category.model.js";
 
 // Assign badges: NEW, TRENDING, TOP RATED
 export const assignBadges = async () => {

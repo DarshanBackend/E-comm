@@ -5,14 +5,15 @@ import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, up
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
-import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getMostWishlistedProducts, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, getSimilarProducts, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
+import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
+// import { createProduct, deleteProduct, getAllProduct, getCategoryHierarchy, getMostWishlistedProducts, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, getSimilarProducts, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
 import { createMainCategory, deleteMainCategoryById, getAllMainCategory, getMainCategoryById, updateMainCategoryById } from '../controller/mainCategory.controller.js';
 import { createSubCategory, deleteSubCategoryById, getAllSubCategory, getSubCategoryById, updateSubCategoryById } from '../controller/subCategory.controller.js';
-import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
-import { createBrand, deleteBrand, getAllBrand, getBrandById, getBrandByMainCategory, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
+// import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
+import { brandFilterSortController, createBrand, deleteBrand, getAllBrand, getBrandById, getBrandByMainCategory, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controller/wishlist.controller.js';
 import { createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
 import { cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
@@ -20,6 +21,9 @@ import { createReview, deleteReview, dislikeReview, getProductReviews, likeRevie
 import { addProductBannerController, deleteProductBannerController, getProductBannerController, updateProductBannerController } from '../controller/product.banner.controller.js';
 import { applyJobController, currentJobController, deleteJobApplicationController, getCurrentJobByIdController, getMyJobapplicationsController } from '../controller/job.application.controller.js';
 import { adminJobsController, createJobController, deleteJobController, updateJobController } from '../controller/jobs.controller.js';
+import { createOfferController, deleteOfferController } from '../controller/offer.controller.js';
+import { downloadInvoiceController, getSellerPaymentsController, makeNewPaymentController, myPaymentController, paymentStatusChangeController } from '../controller/payment.controller.js';
+import { createProductVariant, deleteProductVariant, getAllProductVariant, getProductVarientById, getProductWiseProductVarientdata, updateProductVariant } from '../controller/productVarient.controler.js';
 import { createfaqCategory, deletefaqCategoryById, getAllfaqCategory, getfaqCategoryById, updatefaqCategoryById } from '../controller/faqCategory.controller.js';
 import { createFAQQuestion, deleteFAQQuestion, getAllFAQQuestions, getFAQQuestionById, getFAQQuestionsByCategory, updateFAQQuestion } from '../controller/faqQuestion.controller.js';
 import { addRecentlyView, getRecentlyView } from '../controller/recentlyView.controller.js';
@@ -75,6 +79,11 @@ indexRouter.delete("/deleteBrand/:id", sellerAuth, deleteBrand)
 indexRouter.get("/getSellerBrands", sellerAuth, getSellerBrands)
 indexRouter.get("/getBrandByMainCategory/:mainCategoryId", getBrandByMainCategory)
 
+// brand.filter.route.js
+indexRouter.get("/filter/brand/sort", UserAuth, brandFilterSortController);
+
+
+
 // Product
 indexRouter.post("/createProduct", sellerAuth, createProduct);
 indexRouter.get("/getAllProduct", getAllProduct);
@@ -86,8 +95,8 @@ indexRouter.get("/getProductBySubCategory/:subCategoryId", getProductBySubCatego
 indexRouter.get("/getCategoryHierarchy", getCategoryHierarchy);
 indexRouter.get("/getProductsByBrand/:brandId", getProductsByBrand);
 indexRouter.get("/getProductAll", getProductAll);
-indexRouter.get("/getSimilarProducts/:productId", getSimilarProducts);
-indexRouter.get("/getMostWishlistedProducts", getMostWishlistedProducts);
+// indexRouter.get("/getSimilarProducts/:productId", getSimilarProduct);
+// indexRouter.get("/getMostWishlistedProducts", getMostWishlistedProduct);
 
 
 // Product
@@ -98,11 +107,16 @@ indexRouter.patch("/updateProductVariant/:variantId", sellerAuth, upload.fields(
 indexRouter.delete("/deleteProductVariant/:variantId", sellerAuth, deleteProductVariant);
 indexRouter.get("/getProductWiseProductVarientdata/:productId", getProductWiseProductVarientdata);
 
+
 //product.banner.routes.js
 indexRouter.post("/seller/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), addProductBannerController);
 indexRouter.get("/seller/product/banner/:productId", sellerAuth, getProductBannerController);
 indexRouter.put("/seller/update/product/banner/:productId", sellerAuth, upload.array("bannerImages", 10), updateProductBannerController);
 indexRouter.delete("/seller/delete/product/banner/:productId", sellerAuth, deleteProductBannerController);
+
+//offer.routes.js
+indexRouter.post("/create/offer", UserAuth, isAdmin, upload.single("offerImage"), createOfferController);
+indexRouter.delete("/delete/offer/:offerId", UserAuth, isAdmin, deleteOfferController)
 
 // Coupon
 indexRouter.post("/seller/createCoupon", sellerAuth, createCoupon);
@@ -174,6 +188,14 @@ indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusControl
 indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
 
+//payment.routes.js
+indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);
+indexRouter.get("/my/payments", UserAuth, myPaymentController);
+indexRouter.get("/all/payments", sellerAuth, getSellerPaymentsController);
+indexRouter.get("/download/invoice/:paymentId", UserAuth, downloadInvoiceController);
+indexRouter.patch("/payment/status/:paymentId", sellerAuth, paymentStatusChangeController);
+
+
 //reviw.model.js
 indexRouter.post('/createReview', UserAuth, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]), createReview);
 indexRouter.patch('/updateReview/:reviewId', UserAuth, upload.fields([{ name: 'images', maxCount: 5 }, { name: 'videos', maxCount: 2 }]), updateReview);
@@ -212,8 +234,8 @@ indexRouter.patch("/updateFAQQuestion/:id", UserAuth, isAdmin, updateFAQQuestion
 indexRouter.delete("/deleteFAQQuestion/:id", UserAuth, isAdmin, deleteFAQQuestion);
 indexRouter.get("/getFAQQuestionsByCategory/:categoryId", getFAQQuestionsByCategory);
 
-indexRouter.post("/addRecentlyView/:productId",UserAuth, addRecentlyView);
-indexRouter.get("/getRecentlyView", UserAuth,getRecentlyView);
+indexRouter.post("/addRecentlyView/:productId", UserAuth, addRecentlyView);
+indexRouter.get("/getRecentlyView", UserAuth, getRecentlyView);
 
 const s3Client = new S3Client({
     region: process.env.S3_REGION,
