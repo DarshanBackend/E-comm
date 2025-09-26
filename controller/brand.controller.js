@@ -2,11 +2,12 @@ import mongoose from "mongoose";
 import BrandModel from "../model/brand.model.js";
 import sellerModel from "../model/seller.model.js";
 import { ThrowError } from "../utils/Error.utils.js";
-import { sendBadRequestResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
+import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import { uploadFile } from "../middleware/imageupload.js";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3 } from "../utils/aws.config.js";
 import mainCategoryModel from "../model/mainCategory.model.js";
+import brandModel from "../model/brand.model.js";
 
 export const createBrand = async (req, res) => {
     try {
@@ -289,5 +290,33 @@ export const getBrandByMainCategory = async (req, res) => {
 
     } catch (error) {
         return sendErrorResponse(res, 500, error.message);
+    }
+};
+
+export const brandFilterSortController = async (req, res) => {
+    try {
+        const { d } = req.query; // sorting direction
+
+        let sortOption = {};
+
+        if (d === "az") {
+            // Ascending (A → Z)
+            sortOption = { brandName: 1 };
+        } else if (d === "za") {
+            // Descending (Z → A)
+            sortOption = { brandName: -1 };
+        }
+
+        const brands = await brandModel.find({}).sort(sortOption);
+
+        return res.status(200).json({
+            success: true,
+            message: `Brands sorted ${d === "az" ? "A → Z" : d === "za" ? "Z → A" : "default"}`,
+            data: brands,
+        });
+
+    } catch (error) {
+        console.error(error.message);
+        return sendErrorResponse(res, 500, "Error During Sorting Filter in Brand", error);
     }
 };
