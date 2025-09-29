@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Order from "../model/order.model.js";
 import Product from "../model/product.model.js";
 import ProductVariant from "../model/productvarient.model.js";
-import { sendErrorResponse, sendSuccessResponse } from "../utils/Response.utils.js";
+import { sendBadRequestResponse, sendErrorResponse, sendNotFoundResponse, sendSuccessResponse } from "../utils/Response.utils.js";
 import { nanoid } from "nanoid";
 import orderModel from "../model/order.model.js";
 import UserModel from "../model/user.model.js";
@@ -204,6 +204,7 @@ export const myOrderController = async (req, res) => {
                 orderStatus: order.orderStatus,
                 deliveryExpected: order.deliveryExpected,
                 createdAt: order.createdAt,
+                orderInstruction: order.orderInstruction,
                 payment: order.payment,
                 deliveryAddress: deliveryAddress || null,
             };
@@ -287,29 +288,40 @@ export const updateOrderStatusController = async (req, res) => {
 
 export const cancelMyOrderController = async (req, res) => {
     try {
-        const { orderId } = req?.params;
-        const { id: userId } = req?.user;
-        if (!orderId && !mongoose.Types.ObjectId.isValid(orderId)) {
-            return sendErrorResponse(res, 400, "OrderID is required");
+        const { orderId } = req.params;
+        const { id: userId } = req.user;
+        const { reasonForCancel, comment } = req.body;
+
+        if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+            return sendErrorResponse(res, 400, "Valid OrderID is required");
         }
+
         const order = await orderModel.findById(orderId);
         if (!order) {
             return sendErrorResponse(res, 404, "Order not found");
         }
+
         if (order.userId.toString() !== userId) {
             return sendErrorResponse(res, 403, "You are not authorized to cancel this order");
         }
+
         if (order.orderStatus === "Cancelled") {
             return sendErrorResponse(res, 400, "Order is already cancelled");
         }
+
         order.orderStatus = "Cancelled";
+        order.reasonForCancel = reasonForCancel;
+        order.comment = comment;
+
         await order.save();
+
         return sendSuccessResponse(res, "Order cancelled successfully", order);
     } catch (error) {
-        console.log(error.message);
+        console.error(error.message);
         return sendErrorResponse(res, 500, "Error during cancelMyOrderController", error.message);
     }
 };
+
 
 
 export const orderSummeryController = async (req, res) => {
@@ -362,3 +374,26 @@ export const orderSummeryController = async (req, res) => {
     }
 };
 
+export const addOrderInstructionsController = async (req, res) => {
+    try {
+        const { orderId } = req?.params
+        const { order_notes } = req?.body;
+        if (!order_notes && !req.body && !id) {
+            return sendBadRequestResponse(res, "order_notes or userId iS require to Request");
+        }
+
+        const orderNotes = await orderModel.findByIdAndUpdate({ _id: orderId }, {
+            orderInstruction: order_notes
+        }, { new: true });
+
+        if (!orderNotes) {
+            return sendNotFoundResponse(res, "Order Not Found");
+        }
+
+        return sendSuccessResponse(res, "Order instruction (notes) add successfull", orderNotes);
+
+    } catch (error) {
+        console.log(error);
+        return sendErrorResponse(res, 500, "Error during Add order instruction", error)
+    }
+}

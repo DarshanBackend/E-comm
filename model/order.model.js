@@ -71,7 +71,7 @@ const orderSchema = new mongoose.Schema(
 
     deliveryExpected: { type: Date },
     deliveredAt: { type: Date }, // actual delivered date
-
+    orderInstruction: { type: String, default: null },
     payment: {
       method: {
         type: String,
@@ -85,6 +85,14 @@ const orderSchema = new mongoose.Schema(
       },
       transactionId: { type: String },
     },
+    reasonForCancel: {
+      type: String,
+      default: null
+    },
+    comment: {
+      type: String,
+      default: null
+    }
   },
   { timestamps: true }
 );
