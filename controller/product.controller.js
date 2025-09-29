@@ -219,23 +219,38 @@ export const getAllProduct = async (req, res) => {
 
 export const getProductById = async (req, res) => {
     try {
-        const { id } = req.params
+        const { id } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return sendBadRequestResponse(res, "Invalid ProductId!!!!")
+            return sendBadRequestResponse(res, "Invalid ProductId!!!!");
         }
 
-        const exitsProduct = await Product.findById(id)
-        if (!exitsProduct) {
-            return sendNotFoundResponse(res, "No any Product found!!!")
+        // ✅ Fetch product
+        const product = await Product.findById(id);
+        if (!product) {
+            return sendNotFoundResponse(res, "No Product found!!!");
         }
 
-        return sendSuccessResponse(res, "Product fetched Successfully...", exitsProduct)
+        // ✅ Increment views
+        product.view = (product.view || 0) + 1;
+        await product.save();
+
+        // ✅ Build custom response (include sold, rating, etc.)
+        const result = {
+            ...product.toObject(),
+            rating: {
+                average: product.rating?.average || 0,
+                totalReviews: product.rating?.totalReviews || 0
+            },
+            sold: product.sold || 0  // ensure sold is returned
+        };
+
+        return sendSuccessResponse(res, "Product fetched Successfully...", result);
 
     } catch (error) {
-        return ThrowError(res, 500, error.message)
+        return ThrowError(res, 500, error.message);
     }
-}
+};
 
 export const updateProduct = async (req, res) => {
     try {

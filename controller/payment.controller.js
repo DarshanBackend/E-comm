@@ -4,7 +4,7 @@ import orderModel from "../model/order.model.js";
 import paymentModel from "../model/payment.model.js";
 import cartModel from "../model/cart.model.js";
 import PDFDocument from "pdfkit";
-
+import productModel from "../model/product.model.js";
 
 export const makeNewPaymentController = async (req, res) => {
     try {
@@ -18,59 +18,112 @@ export const makeNewPaymentController = async (req, res) => {
             bankTransferDetails,
         } = req.body;
 
-        // Validate required fields
+        // ✅ Validate required fields
         if (!userId || !orderId || !paymentMethod) {
-            return res.status(400).json({ success: false, message: "Missing required fields" });
+            return res.status(400).json({
+                success: false,
+                message: "Missing required fields: userId, orderId, paymentMethod"
+            });
         }
 
-        // Fetch order
-        const order = await orderModel.findById(orderId);
+        // ✅ Fetch order and check if it belongs to the user
+        const order = await orderModel.findOne({ _id: orderId, userId });
         if (!order) {
-            return res.status(404).json({ success: false, message: "Order not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Order not found or does not belong to user"
+            });
         }
 
-        // Use order.finalAmount as the payment amount
+        // ✅ Check if payment already exists for this order
+        const existingPayment = await paymentModel.findOne({ orderId });
+        if (existingPayment) {
+            return res.status(409).json({
+                success: false,
+                message: "Payment already exists for this order"
+            });
+        }
+
+        // ✅ Use order.totalAmount as the payment amount
         const amount = order.totalAmount;
 
-        // Create Payment record
-        const payment = await paymentModel.create({
+        // ✅ Create Payment record with initial status "pending"
+        let payment = await paymentModel.create({
             userId,
             orderId,
             amount,
             paymentMethod,
-            transactionId: transactionId || null, // from gateway if available
+            transactionId: transactionId || null,
             cardDetails,
             paypalDetails,
             bankTransferDetails,
+            paymentStatus: "pending", // initial state
         });
 
-        // === Remove ordered items from user's cart ===
+        // ✅ Remove ordered items from user's cart
         if (order.items && order.items.length > 0) {
+            const productIds = order.items.map(item => item.productId);
+            const packSizeIds = order.items.map(item => item.packSizeId).filter(Boolean);
+
             await cartModel.updateOne(
                 { userId },
                 {
                     $pull: {
                         items: {
-                            $or: order.items.map((i) => ({
-                                productId: i.productId,
-                                packSizeId: i.packSizeId,
-                            })),
-                        },
-                    },
+                            $or: [
+                                { productId: { $in: productIds } },
+                                { packSizeId: { $in: packSizeIds } }
+                            ]
+                        }
+                    }
                 }
             );
         }
 
+        // ✅ Update order status to pending
+        await orderModel.findByIdAndUpdate(orderId, {
+            status: "pending",
+            paymentStatus: "pending"
+        });
+
+        await payment.save();
+
+        // ✅ Update order status to completed
+        await orderModel.findByIdAndUpdate(orderId, {
+            status: "completed",
+            paymentStatus: "completed"
+        });
+
+        // ✅ Update sold count for each product in the order
+        if (order.items && order.items.length > 0) {
+            for (const item of order.items) {
+                await Product.findByIdAndUpdate(
+                    item.productId,
+                    { $inc: { sold: item.quantity || 1 } },
+                    { new: true }
+                );
+                console.log(`✅ Updated sold count for product: ${item.productId}`);
+            }
+        }
+
         return res.status(201).json({
             success: true,
-            message: "Payment record created & ordered items removed from cart",
-            data: payment,
+            message: "Payment completed successfully & items removed from cart",
+            data: {
+                paymentId: payment._id,
+                orderId: order._id,
+                amount: payment.amount,
+                paymentMethod: payment.paymentMethod,
+                paymentStatus: payment.paymentStatus, // "completed"
+                transactionId: payment.transactionId
+            },
         });
+
     } catch (error) {
         console.error("Payment Error:", error);
         return res.status(500).json({
             success: false,
-            message: "Server error",
+            message: "Payment processing failed",
             error: error.message,
         });
     }
@@ -131,7 +184,6 @@ export const myPaymentController = async (req, res) => {
     }
 };
 
-
 export const getSellerPaymentsController = async (req, res) => {
     try {
         const sellerId = req.user._id;
@@ -173,7 +225,7 @@ export const downloadInvoiceController = async (req, res) => {
         const payment = await paymentModel.findById(paymentId)
             .populate({
                 path: "userId",
-                select: "firstName lastName email mobileNo billingaddress"
+                select: "firstName lastName email billingaddress"
             })
             .populate({
                 path: "orderId",
@@ -221,7 +273,6 @@ export const downloadInvoiceController = async (req, res) => {
             ["Payment Date", new Date(payment.paymentDate).toLocaleDateString()],
             ["Customer Name", `${user.firstName} ${user.lastName}`],
             ["Email", user.email],
-            ["Mobile", user.mobileNo || "N/A"],
         ];
 
         if (addr) {
@@ -286,7 +337,7 @@ export const downloadInvoiceController = async (req, res) => {
             }
 
             x = tableStartX;
-            const rowValues = [                   
+            const rowValues = [
                 index + 1,
                 `${product.title} (${variant.color || "N/A"}, Size: ${variant.size || "N/A"})`,
                 item.quantity,
@@ -339,18 +390,20 @@ export const downloadInvoiceController = async (req, res) => {
     }
 };
 
-
 export const paymentStatusChangeController = async (req, res) => {
     try {
         const { paymentId } = req.params;
         const { paymentStatus } = req.body;
 
-        // Validate paymentId
+        // ✅ Validate paymentId
         if (!paymentId || !mongoose.Types.ObjectId.isValid(paymentId)) {
-            return res.status(400).json({ success: false, message: "Valid payment ID is required" });
+            return res.status(400).json({
+                success: false,
+                message: "Valid payment ID is required"
+            });
         }
 
-        // Validate paymentStatus
+        // ✅ Validate paymentStatus
         const allowedStatuses = ["pending", "completed", "failed", "refunded"];
         if (!paymentStatus || !allowedStatuses.includes(paymentStatus)) {
             return res.status(400).json({
@@ -359,22 +412,61 @@ export const paymentStatusChangeController = async (req, res) => {
             });
         }
 
-        // Find and update payment
+        // ✅ Find payment
         const payment = await paymentModel.findById(paymentId);
         if (!payment) {
-            return res.status(404).json({ success: false, message: "Payment not found" });
+            return res.status(404).json({
+                success: false,
+                message: "Payment not found"
+            });
         }
-
+        // if(paymentStatus === "completed"){
+        //     await productModel        }
+        // ✅ Update payment status
         payment.paymentStatus = paymentStatus;
         await payment.save();
+
+        // ✅ Update linked order status
+        const order = await orderModel.findById(payment.orderId);
+        if (order) {
+            if (paymentStatus === "completed") {
+                order.status = "completed";
+                order.paymentStatus = "completed";
+
+                // ✅ Update sold count for each product
+                if (order.items && order.items.length > 0) {
+                    for (const item of order.items) {
+                        await Product.findByIdAndUpdate(
+                            item.productId,
+                            { $inc: { sold: item.quantity || 1 } },
+                            { new: true }
+                        );
+                        console.log(`✅ Sold count updated for product: ${item.productId}`);
+                    }
+                }
+            } else if (paymentStatus === "failed") {
+                order.status = "cancelled";
+                order.paymentStatus = "failed";
+            } else if (paymentStatus === "refunded") {
+                order.status = "refunded";
+                order.paymentStatus = "refunded";
+            } else {
+                order.status = "pending";
+                order.paymentStatus = "pending";
+            }
+
+            await order.save();
+        }
 
         return res.status(200).json({
             success: true,
             message: `Payment status updated to ${paymentStatus}`,
-            payment
+            payment,
+            order
         });
 
     } catch (error) {
+        console.error("Payment Status Change Error:", error);
         return res.status(500).json({
             success: false,
             message: "Server error",

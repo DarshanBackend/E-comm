@@ -5,7 +5,7 @@ import logger from 'morgan';
 import { connectDB } from './DB/connectdb.js';
 import mongoose from 'mongoose';
 import IndexRoute from './routes/index.routes.js';
-
+import cors from 'cors'
 
 //connect DB
 const DB_URL = process.env.DB_URL || "mongodb+srv://akshayvaghasiya814:aksh2002@cluster0.se95gol.mongodb.net/ecommerce-web"
@@ -18,7 +18,7 @@ const app = express();
 app.use(express.json()); //for json transction
 app.use(express.urlencoded({ extended: true }));
 app.use(logger("dev")); //for logging all apis and thire response in console.
-
+app.use(cors())
 //port define
 const PORT = process.env.PORT || 9000;
 

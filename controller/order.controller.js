@@ -42,7 +42,6 @@ export const newOrderController = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(userId)) {
             return sendErrorResponse(res, 400, "Invalid user ID");
         }
-
         if (!Number.isInteger(quantity) || quantity <= 0) {
             return sendErrorResponse(res, 400, "Quantity must be a positive integer");
         }
@@ -79,11 +78,11 @@ export const newOrderController = async (req, res) => {
             quantity,
             price: variant.price.original,
         };
-        // Convert variant.price (string in schema) to number for calculations
         const unitPrice = Number(variant.price.original);
         if (isNaN(unitPrice)) {
             return sendErrorResponse(res, 400, "Invalid variant price");
         }
+
         // --- Coupon logic ---
         let discountAmount = 0;
         const productSubtotal = roundToTwo(unitPrice * quantity);
@@ -111,8 +110,16 @@ export const newOrderController = async (req, res) => {
                     discountAmount = Math.min(discountValue, productSubtotal);
                 }
             }
+
+            // Track usage
+            await couponModel.findByIdAndUpdate(
+                coupon._id,
+                { $addToSet: { usedBy: userId } },
+                { session }
+            );
         }
 
+        const totalAmount = roundToTwo(productSubtotal - discountAmount);
 
         // --- Delivery ---
         const deliveryExpected = new Date();
@@ -124,9 +131,10 @@ export const newOrderController = async (req, res) => {
             sellerId: product.sellerId,
             products: [orderProduct],
             discountAmount,
-            couponCode: couponCode,
-            isCouponApplied: true,
-            deliveryAddress: billingAddressId,
+            couponCode: couponCode || null,
+            isCouponApplied: !!(isCouponApplied && couponCode),
+            totalAmount,
+            deliveryAddress: { ...billingAddress.toObject() }, // snapshot
             deliveryExpected,
             payment: {
                 method,
@@ -137,12 +145,15 @@ export const newOrderController = async (req, res) => {
 
         const savedOrder = await newOrder.save({ session });
 
-        // --- Update stock and seller orders ---
-        await ProductVariant.findByIdAndUpdate(
-            variantId,
+        // --- Update stock & seller ---
+        const stockUpdate = await ProductVariant.updateOne(
+            { _id: variantId, stock: { $gte: quantity } },
             { $inc: { stock: -quantity } },
             { session }
         );
+        if (stockUpdate.modifiedCount === 0) {
+            throw new Error("Stock update failed due to concurrency");
+        }
 
         await sellerModel.findByIdAndUpdate(
             product.sellerId,
@@ -152,18 +163,17 @@ export const newOrderController = async (req, res) => {
 
         await session.commitTransaction();
 
-        return sendSuccessResponse(res, 201, "Order placed successfully", savedOrder);
+        return sendSuccessResponse(res, 201, "Order placed successfully", {
+            orderId: savedOrder._id,
+            totalAmount: savedOrder.totalAmount,
+            payment: savedOrder.payment,
+            products: savedOrder.products,
+            deliveryExpected: savedOrder.deliveryExpected,
+        });
 
     } catch (error) {
         await session.abortTransaction();
         console.error("Order Error:", error);
-
-        if (error.name === "ValidationError") {
-            return sendErrorResponse(res, 400, "Validation Error", error.message);
-        }
-        if (error.code === 11000) {
-            return sendErrorResponse(res, 400, "Duplicate entry");
-        }
         return sendErrorResponse(res, 500, "Error placing order", error.message);
     } finally {
         session.endSession();

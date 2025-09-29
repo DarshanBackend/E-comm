@@ -62,6 +62,13 @@ const productSchema = new mongoose.Schema({
       ]
     }
   ],
+  view: {
+    type: Number,
+  },
+  sold: {
+    type:Number,
+    default:0
+  },
   isActive: { type: Boolean, default: true }
 
 }, { timestamps: true });

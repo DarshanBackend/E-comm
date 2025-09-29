@@ -54,10 +54,10 @@ indexRouter.post("/seller/reset/password", sellerPasswordResetController);
 
 
 // MainCategory
-indexRouter.post("/createMainCategory", UserAuth, isAdmin, createMainCategory)
+indexRouter.post("/createMainCategory", UserAuth, isAdmin, upload.fields([{ name: "mainCategoryImage", maxCount: 1 }]), createMainCategory)
 indexRouter.get("/getAllMainCategory", getAllMainCategory)
 indexRouter.get("/getMainCategoryById/:id", getMainCategoryById)
-indexRouter.patch("/updateMainCategoryById/:id", UserAuth, isAdmin, updateMainCategoryById)
+indexRouter.patch("/updateMainCategoryById/:id", UserAuth, isAdmin, upload.fields([{ name: "mainCategoryImage", maxCount: 1 }]), updateMainCategoryById)
 indexRouter.delete("/deleteMainCategoryById/:id", UserAuth, isAdmin, deleteMainCategoryById)
 
 // Category
@@ -197,7 +197,7 @@ indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusControl
 indexRouter.post("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
 //Order special instructions
-indexRouter.post("/order/instructions/:orderId", UserAuth,addOrderInstructionsController);
+indexRouter.post("/order/instructions/:orderId", UserAuth, addOrderInstructionsController);
 
 //payment.routes.js
 indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);

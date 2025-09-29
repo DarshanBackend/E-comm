@@ -4,6 +4,10 @@ const mainCategorySchema = mongoose.Schema({
     mainCategoryName: {
         type: String,
         required: true,
+    },
+    mainCategoryImage: {
+        type: String,
+        required: true
     }
 }, { timestamps: true })
 
