@@ -14,7 +14,7 @@ import { createSubCategory, deleteSubCategoryById, getAllSubCategory, getSubCate
 import { brandFilterController, createBrand, deleteBrand, getAllBrand, getBrandById, getBrandByMainCategory, getSellerBrands, updateBrand } from '../controller/brand.controller.js';
 import { addToWishlist, getWishlist, removeFromWishlist } from '../controller/wishlist.controller.js';
 import { createCoupon, deleteCoupon, getAllCoupon, getCouponById, updateCoupon } from '../controller/coupon.controller.js';
-import { cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
+import { addOrderInstructionsController, cancelMyOrderController, getSellerAllOrdersController, myOrderController, newOrderController, orderSummeryController, updateOrderStatusController } from '../controller/order.controller.js';
 import { createReview, deleteReview, dislikeReview, getProductReviews, likeReview, updateReview } from '../controller/review.controller.js';
 import { addProductBannerController, deleteProductBannerController, getProductBannerController, updateProductBannerController } from '../controller/product.banner.controller.js';
 import { applyJobController, currentJobController, deleteJobApplicationController, getCurrentJobByIdController, getMyJobapplicationsController } from '../controller/job.application.controller.js';
@@ -193,8 +193,10 @@ indexRouter.post("/new/order", UserAuth, newOrderController);
 indexRouter.get("/my/order", UserAuth, myOrderController);
 indexRouter.get("/seller/orders", sellerAuth, getSellerAllOrdersController);
 indexRouter.patch("/order/status/:orderId", sellerAuth, updateOrderStatusController);
-indexRouter.delete("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
+indexRouter.post("/cancel/my/order/:orderId", UserAuth, cancelMyOrderController);
 indexRouter.get("/order/summery", UserAuth, orderSummeryController)
+//Order special instructions
+indexRouter.post("/order/instructions/:orderId", UserAuth,addOrderInstructionsController);
 
 //payment.routes.js
 indexRouter.post("/new/payment", UserAuth, makeNewPaymentController);
@@ -282,7 +284,7 @@ indexRouter.patch("/updateorderFAQQuestion/:id", UserAuth, isAdmin, updateorderF
 indexRouter.delete("/deleteorderFAQQuestion/:id", UserAuth, isAdmin, deleteorderFAQQuestion);
 indexRouter.get("/getorderFAQQuestionsByCategory/:ordercategoryId", getorderFAQQuestionsByCategory);
 
-//orderfaqQuestion route
+
 indexRouter.post("/createSubcribe", createSubcribe);
 indexRouter.get("/getAllSubcribe", getAllSubcribe);
 indexRouter.get("/getSubcribeById/:id", getSubcribeById);
