@@ -911,3 +911,63 @@ export const getTrendingProducts = async (req, res) => {
         });
     }
 };
+
+export const getSalesAnalytics = async (req, res) => {
+    try {
+        const { period = "24" } = req.query;
+
+        const hours = parseInt(period);
+        if (![12, 24].includes(hours)) {
+            return sendErrorResponse(res, 400, "Period must be 12 or 24 hours");
+        }
+
+        const timeAgo = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+        const result = await paymentModel.aggregate([
+            {
+                $match: {
+                    paymentStatus: "completed",
+                    paymentDate: { $gte: timeAgo }
+                }
+            },
+            {
+                $lookup: {
+                    from: "orders",
+                    localField: "orderId",
+                    foreignField: "_id",
+                    as: "order"
+                }
+            },
+            {
+                $unwind: "$order"
+            },
+            {
+                $unwind: "$order.items"
+            },
+            {
+                $group: {
+                    _id: null,
+                    totalProductsSold: { $sum: "$order.items.quantity" },
+                    totalOrders: { $sum: 1 },
+                    totalRevenue: { $sum: "$amount" },
+                    averageOrderValue: { $avg: "$amount" }
+                }
+            }
+        ]);
+
+        const salesData = result[0] || {
+            totalProductsSold: 0,
+            totalOrders: 0,
+            totalRevenue: 0,
+            averageOrderValue: 0
+        };
+
+        return sendSuccessResponse(res, `Sales analytics for last ${hours} hours fetched successfully`, {
+            period: `${hours} hours`,
+            ...salesData
+        });
+
+    } catch (error) {
+        return sendErrorResponse(res, 500, error.message);
+    }
+};

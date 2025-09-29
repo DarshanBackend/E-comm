@@ -5,7 +5,7 @@ import { createCategory, deleteCategoryById, getAllCategory, getCategoryById, up
 import { isAdmin, isUser, sellerAuth, UserAuth } from '../middleware/auth.middleware.js';
 import { upload } from '../middleware/imageupload.js';
 import { getProfileController, getSellerProfileController, getUserAddressController, getUserBillingAddressController, userAddressAddController, userAddressDeleteController, userAddressUpdatecontroller, userBillingAddressAddController, userBillingAddressDeleteController, userBillingAddressUpdatecontroller, userPasswordChangeController, userProfileUpdateController, userRemoveAccountController } from '../controller/profile.controller.js';
-import { createProduct, deleteProduct, discoverProductController, getAllProduct, getCategoryHierarchy, getMostWishlistedProducts, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, getSimilarProducts, getTrendingProducts, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
+import { createProduct, deleteProduct, discoverProductController, getAllProduct, getCategoryHierarchy, getMostWishlistedProducts, getProductAll, getProductById, getProductBySubCategory, getProductsByBrand, getSalesAnalytics, getSimilarProducts, getTrendingProducts, updateLoveAboutPoints, updateProduct } from '../controller/product.controller.js';
 import { getMyCartController, toggleCartItemController } from '../controller/cart.controller.js';
 import { ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
@@ -102,6 +102,7 @@ indexRouter.get("/getProductAll", getProductAll);
 indexRouter.get("/getSimilarProducts/:productId", getSimilarProducts);
 indexRouter.get("/getMostWishlistedProducts", getMostWishlistedProducts);
 indexRouter.get("/getTrendingProducts", getTrendingProducts);
+indexRouter.get("/getSalesAnalytics", getSalesAnalytics);
 
 // discover new product
 indexRouter.get("/discover/product", UserAuth, discoverProductController)
